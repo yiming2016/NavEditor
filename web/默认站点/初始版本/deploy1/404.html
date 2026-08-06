@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>404</title></head>
+<body>
+<script>
+(function(){
+  var path = location.pathname;
+  var rules = [{"pattern":"/onion","template":"404隐藏.html"}];
+  var def = "404普通.html";
+  function matchRule(pat){
+    if(!pat) return false;
+    var parts = pat.split('*');
+    var rx = new RegExp('^' + parts.map(function(s){ return s.replace(/[.*+?^${}()|[]\/]/g, '\$&'); }).join('([^/]*)') + '$');
+    return rx.test(path);
+  }
+  var hit = null;
+  for (var i = 0; i < rules.length; i++) {
+    if (matchRule(rules[i].pattern)) { hit = rules[i].template; break; }
+  }
+  var tpl = hit || def;
+  if (tpl) {
+    fetch('404/' + tpl).then(function(r){ return r.text(); }).then(function(html){
+      document.open(); document.write(html); document.close();
+    });
+  }
+})();
+</script>
+</body></html>

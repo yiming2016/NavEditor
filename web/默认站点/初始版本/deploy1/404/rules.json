@@ -1,0 +1,9 @@
+{
+  "rules": [
+    {
+      "pattern": "/onion",
+      "template": "404隐藏.html"
+    }
+  ],
+  "default": "404普通.html"
+}

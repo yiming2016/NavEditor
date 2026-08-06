@@ -1,12 +1,13 @@
 {
-  "custom_port": 9620,
-  "startup_delay_ms": 0,
+  "custom_port": 0,
+  "startup_delay_ms": 800,
   "auto_open_browser": true,
   "auto_open_editor": true,
   "bind_address": "127.0.0.1",
-  "log_to_file": false,
-  "theme": "dark",
+  "theme": "light",
   "minimize_to_tray": false,
   "default_page": "editor",
-  "show_server_log": true
+  "show_server_log": true,
+  "log_to_file": false,
+  "password_dir": "C:\\Users\\29773\\Pictures\\password"
 }

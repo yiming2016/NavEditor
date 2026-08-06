@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>404 - 页面离家出走了</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #4c1d95 100%);
+    color: #e2e8f0;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 24px;
+  }
+  .card {
+    background: rgba(255,255,255,0.06);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 20px;
+    padding: 48px 40px;
+    max-width: 520px; width: 100%;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  .emoji { font-size: 72px; line-height: 1; margin-bottom: 8px; animation: float 3s ease-in-out infinite; }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+  .code { font-size: 88px; font-weight: 900; letter-spacing: 4px;
+    background: linear-gradient(90deg,#a78bfa,#f472b6,#38bdf8);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    margin: 4px 0 12px; }
+  h1 { font-size: 22px; margin-bottom: 12px; font-weight: 700; }
+  p { font-size: 14px; color: #cbd5e1; line-height: 1.7; margin-bottom: 8px; }
+  .home-btn {
+    display: inline-block; margin-top: 22px; padding: 12px 28px;
+    background: linear-gradient(90deg,#6366f1,#a855f7);
+    color: #fff; text-decoration: none; border-radius: 999px;
+    font-size: 14px; font-weight: 600; transition: transform .15s, box-shadow .15s;
+  }
+  .home-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(168,85,247,0.5); }
+  /* ===== 隐藏按钮：视觉上伪装成普通装饰文字（404 计数的一部分） ===== */
+  /* 用户修改区：把下面 a.hidden-trap-btn 的 href 改成你要跳转的真实地址即可。 */
+  /* 目前为占位（#），点击不会跳转。可改成如 https://your-real-target.example/ */
+  .hidden-trap-btn {
+    display: inline-block;
+    margin-top: 26px;
+    font-size: 11px;
+    color: rgba(148,163,184,0.35);   /* 刻意很淡，混入背景，类似一行不起眼的版权说明 */
+    text-decoration: none;
+    letter-spacing: 1px;
+    border-bottom: 1px dotted rgba(148,163,184,0.2);
+    cursor: pointer;
+    user-select: none;
+  }
+  .hidden-trap-btn:hover { color: rgba(167,139,250,0.9); border-bottom-color: rgba(167,139,250,0.6); }
+  .trap-hint { font-size: 10px; color: rgba(148,163,184,0.25); margin-top: 4px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="emoji">🌑</div>
+    <div class="code">404</div>
+    <h1>页面离家出走了</h1>
+    <p>你访问的地址不存在，也许它藏进了更深的暗网角落。<br>表面什么都没有，但有些门只对有心人敞开。</p>
+    <a class="home-btn" href="/">返回首页</a>
+
+    <!-- ===== 隐藏按钮（请在此行下方修改 href 为真实跳转地址）===== -->
+    <div>
+      <a class="hidden-trap-btn" href="#">© 访问统计 · 点击查看访问明细</a>
+      <div class="trap-hint">page not found · session id: 0x4f0a</div>
+    </div>
+    <!-- ===== 隐藏按钮结束 ===== -->
+
+  </div>
+</body>
+</html>

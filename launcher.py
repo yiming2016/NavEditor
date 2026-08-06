@@ -19,6 +19,7 @@ import base64
 import threading
 import webbrowser
 import time
+import shutil
 import http.server
 import socketserver
 import functools
@@ -108,7 +109,7 @@ DEPLOY_EXCLUDE_PREFIX = {
     'web',       # 各站点/版本的工作副本与部署目录（部署内容按当前版本 deploy 组单独收集）
     'footer',    # 编辑器根 footer 工作文件夹（部署用 web/<site>/<version>/deploy1/footer）
 }
-DEPLOY_EXCLUDE_FILE = {'.gitignore', 'README.md', 'Readme-en.md', 'deploy.zip', '.about_template', 'launcher_startup.log'}
+DEPLOY_EXCLUDE_FILE = {'.gitignore', 'README.md', 'Readme-en.md', 'deploy.zip', '.about_template', 'launcher_startup.log', 'requirements.txt', 'LICENSE'}
 DEPLOY_EXCLUDE_SUBPATH = {
     'assets/fontawesome-5.15.4/js/',
     'assets/fontawesome-5.15.4/less/',
@@ -537,6 +538,8 @@ DEFAULT_CONFIG = {
     'default_page': 'editor',      # 启动/打开时默认页：editor / preview / about
     'show_server_log': True,       # 控制台显示服务器访问日志
     'log_to_file': False,
+    'password_dir': '',            # 账号凭证存储文件夹（为空时用工作目录 password/）
+    'data_dir': '',                # 用户数据根目录（web/、password/ 所在；为空时用项目目录）
 }
 
 
@@ -564,6 +567,32 @@ def save_config(cfg):
         return True
     except Exception:
         return False
+
+
+def get_data_root(project_dir=None):
+    """返回用户数据根目录（web/、password/ 所在）。
+    配置了 data_dir 时用配置值，否则回退到项目目录（旧行为）。"""
+    cfg = load_config()
+    d = (cfg.get('data_dir') or '').strip()
+    if d:
+        return os.path.abspath(d)
+    return os.path.abspath(project_dir if project_dir else get_project_dir())
+
+
+def migrate_data_root(project_dir, data_root):
+    """把项目目录内旧的 web/、password/ 数据复制到数据根目录（不删除原文件）。"""
+    try:
+        for sub in ('web', 'password'):
+            src = os.path.join(project_dir, sub)
+            dst = os.path.join(data_root, sub)
+            if os.path.isdir(src) and not os.path.exists(dst):
+                os.makedirs(data_root, exist_ok=True)
+                shutil.copytree(src, dst)
+                _startup_log('migrate_data_root: copied %s -> %s' % (src, dst))
+            else:
+                _startup_log('migrate_data_root: skip %s (src=%s dst=%s)' % (sub, os.path.isdir(src), os.path.exists(dst)))
+    except Exception as e:
+        _startup_log('migrate_data_root ERROR: %s' % e)
 
 
 def get_project_dir():
@@ -653,10 +682,22 @@ class SiteStorage:
     """
 
     SETTING_FILE = 'setting'
+    # 拆分后的站点级文件：meta=元信息，data=业务数据，state=运行时状态，baseline=发布基线
+    SITE_META_FILE = 'meta.json'
+    SITE_DATA_FILE = 'data.json'
+    SITE_STATE_FILE = 'state.json'
+    SITE_BASELINE_FILE = 'baseline.json'
+    # 拆分后的版本级文件：meta=元信息，data=内容快照，sync=同步记录/版本基线
+    VER_META_FILE = 'meta.json'
+    VER_DATA_FILE = 'data.json'
+    VER_SYNC_FILE = 'sync.json'
+    # 站点数据中的“运行时字段”：不随业务数据导出/分享，拆分时单独存放
+    SITE_RUNTIME_FIELDS = ('deployBaseline', 'deploySettings', 'currentVersionId', 'versionOrder')
 
     def __init__(self, directory):
         self.directory = os.path.abspath(directory)
-        self.web_dir = os.path.abspath(os.path.join(self.directory, 'web'))
+        self.data_root = get_data_root(directory)
+        self.web_dir = os.path.abspath(os.path.join(self.data_root, 'web'))
         os.makedirs(self.web_dir, exist_ok=True)
 
     def _web_path(self, *parts):
@@ -753,6 +794,110 @@ class SiteStorage:
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
+    # ---------- 拆分存储辅助（老 setting 自动兼容/迁移）----------
+    def _remove_legacy_setting(self, path):
+        """拆分写入成功后删除老 setting 文件，避免双数据源。失败仅记录日志。"""
+        try:
+            legacy = os.path.join(path, self.SETTING_FILE)
+            if os.path.isfile(legacy):
+                os.remove(legacy)
+                _startup_log('setting split: removed legacy %s' % legacy)
+        except Exception as e:
+            _startup_log('setting split: keep legacy %s (%s)' % (path, e))
+
+    @staticmethod
+    def _split_site_setting(setting):
+        """把一个完整站点 setting 对象拆成 meta/data/state/baseline 四份。"""
+        meta = {}
+        for k in ('id', 'name', 'createdAt', 'updatedAt'):
+            if k in setting:
+                meta[k] = setting[k]
+        data = dict(setting.get('data') or {})
+        state = {}
+        baseline = {}
+        # 兼容：运行时字段可能在顶层，也可能嵌在 data 里（前端把整个 data 存进来）
+        for k in SiteStorage.SITE_RUNTIME_FIELDS:
+            val = setting.get(k, data.get(k))
+            if val is not None:
+                if k == 'deployBaseline':
+                    baseline = val
+                else:
+                    state[k] = val
+            data.pop(k, None)
+        # 保底：顶层其余未知字段（如 defaultTemplate）归入运行时状态，避免拆分时丢失
+        for k, v in setting.items():
+            if k not in meta and k != 'data' and k not in SiteStorage.SITE_RUNTIME_FIELDS:
+                state[k] = v
+        return meta, data, state, baseline
+
+    @staticmethod
+    def _merge_site_setting(meta, data, state, baseline):
+        """把四份文件合并回前端期望的完整 setting 对象（运行时字段合回 data）。"""
+        setting = dict(meta)
+        full = dict(data)
+        for k, v in state.items():
+            full[k] = v
+        full['deployBaseline'] = baseline
+        setting['data'] = full
+        return setting
+
+    def _read_site_setting_at(self, site_path):
+        """读取站点 setting：新格式合并四文件；老格式（仅 setting）原样返回。"""
+        # 老 setting 存在时优先读它：拆分写入中途崩溃（新文件不完整）时保证老数据仍可读
+        legacy = os.path.join(site_path, self.SETTING_FILE)
+        if os.path.isfile(legacy):
+            return self._read_json(legacy) or {}
+        if os.path.isfile(os.path.join(site_path, self.SITE_META_FILE)):
+            meta = self._read_json(os.path.join(site_path, self.SITE_META_FILE)) or {}
+            data = self._read_json(os.path.join(site_path, self.SITE_DATA_FILE)) or {}
+            state = self._read_json(os.path.join(site_path, self.SITE_STATE_FILE)) or {}
+            baseline = self._read_json(os.path.join(site_path, self.SITE_BASELINE_FILE)) or {}
+            return self._merge_site_setting(meta, data, state, baseline)
+        return {}
+
+    def _write_site_setting_at(self, site_path, setting):
+        """把站点 setting 拆分写入四份文件，成功后删除老 setting。"""
+        meta, data, state, baseline = self._split_site_setting(setting)
+        self._write_json(os.path.join(site_path, self.SITE_META_FILE), meta)
+        self._write_json(os.path.join(site_path, self.SITE_DATA_FILE), data)
+        self._write_json(os.path.join(site_path, self.SITE_STATE_FILE), state)
+        self._write_json(os.path.join(site_path, self.SITE_BASELINE_FILE), baseline)
+        self._remove_legacy_setting(site_path)
+
+    def _read_version_setting_at(self, version_path):
+        """读取版本 setting：新格式合并 meta/data/sync；老格式原样返回。"""
+        # 老 setting 存在时优先读它（与站点拆分同理，保证迁移中途不丢数据）
+        legacy = os.path.join(version_path, self.SETTING_FILE)
+        if os.path.isfile(legacy):
+            return self._read_json(legacy) or {}
+        if os.path.isfile(os.path.join(version_path, self.VER_META_FILE)):
+            setting = self._read_json(os.path.join(version_path, self.VER_META_FILE)) or {}
+            setting['data'] = self._read_json(os.path.join(version_path, self.VER_DATA_FILE)) or {}
+            sync = self._read_json(os.path.join(version_path, self.VER_SYNC_FILE)) or {}
+            for k, v in sync.items():
+                setting[k] = v
+            return setting
+        return {}
+
+    def _write_version_setting_at(self, version_path, setting):
+        """把版本 setting 拆分写入 meta/data/sync，成功后删除老 setting。"""
+        meta = {}
+        for k in ('id', 'name', 'note', 'timestamp', 'starred'):
+            if k in setting:
+                meta[k] = setting[k]
+        data = setting.get('data') or {}
+        # 双保险：版本快照不应携带运行时字段（与前端 stripVersionRuntime 一致）
+        for k in SiteStorage.SITE_RUNTIME_FIELDS:
+            data.pop(k, None)
+        sync = {}
+        for k in ('syncInfo', 'deployBaselines'):
+            if k in setting:
+                sync[k] = setting[k]
+        self._write_json(os.path.join(version_path, self.VER_META_FILE), meta)
+        self._write_json(os.path.join(version_path, self.VER_DATA_FILE), data)
+        self._write_json(os.path.join(version_path, self.VER_SYNC_FILE), sync)
+        self._remove_legacy_setting(version_path)
+
     # ---------- 站点 ----------
     def list_sites(self):
         sites = []
@@ -762,7 +907,7 @@ class SiteStorage:
             path = os.path.join(self.web_dir, name)
             if not os.path.isdir(path):
                 continue
-            setting = self._read_json(os.path.join(path, self.SETTING_FILE)) or {}
+            setting = self._read_site_setting_at(path)
             sites.append({
                 'id': name,
                 'name': setting.get('name') or name,
@@ -823,14 +968,14 @@ class SiteStorage:
             'updatedAt': now,
             'data': data if isinstance(data, dict) else {},
         }
-        self._write_json(os.path.join(site_path, self.SETTING_FILE), setting)
+        self._write_site_setting_at(site_path, setting)
         return site_id
 
     def rename_site(self, site_id, new_name):
         site_path = self._web_path(site_id)
         if not os.path.isdir(site_path):
             raise FileNotFoundError('站点不存在')
-        setting = self._read_json(os.path.join(site_path, self.SETTING_FILE)) or {}
+        setting = self._read_site_setting_at(site_path)
         setting['name'] = new_name
         setting['updatedAt'] = int(time.time() * 1000)
         # 同步重命名磁盘上的站点文件夹（站点 id 即文件夹名）
@@ -843,10 +988,10 @@ class SiteStorage:
                 raise FileExistsError('目标站点文件夹已存在: ' + new_id)
             self._safe_rename_dir(site_path, new_path)
             setting['id'] = new_id
-            self._write_json(os.path.join(new_path, self.SETTING_FILE), setting)
+            self._write_site_setting_at(new_path, setting)
             self._update_site_order(site_id, new_id)
         else:
-            self._write_json(os.path.join(site_path, self.SETTING_FILE), setting)
+            self._write_site_setting_at(site_path, setting)
         return new_id
 
     def delete_site(self, site_id):
@@ -862,7 +1007,7 @@ class SiteStorage:
         site_path = self._web_path(site_id)
         if not os.path.isdir(site_path):
             return None
-        return self._read_json(os.path.join(site_path, self.SETTING_FILE))
+        return self._read_site_setting_at(site_path)
 
     def write_site_setting(self, site_id, setting):
         site_path = self._web_path(site_id)
@@ -870,7 +1015,7 @@ class SiteStorage:
             raise FileNotFoundError('站点不存在')
         setting['id'] = site_id
         setting['updatedAt'] = int(time.time() * 1000)
-        self._write_json(os.path.join(site_path, self.SETTING_FILE), setting)
+        self._write_site_setting_at(site_path, setting)
 
     # ---------- 版本 ----------
     def list_versions(self, site_id):
@@ -882,7 +1027,12 @@ class SiteStorage:
             path = os.path.join(site_path, name)
             if not os.path.isdir(path) or name == self.SETTING_FILE:
                 continue
-            setting = self._read_json(os.path.join(path, self.SETTING_FILE)) or {}
+            # 版本判断：新格式看 meta.json/data.json，老格式看 setting；模板目录等都不是
+            if not (os.path.isfile(os.path.join(path, self.VER_META_FILE))
+                    or os.path.isfile(os.path.join(path, self.VER_DATA_FILE))
+                    or os.path.isfile(os.path.join(path, self.SETTING_FILE))):
+                continue
+            setting = self._read_version_setting_at(path)
             deploy_groups = []
             for child in sorted(os.listdir(path)):
                 child_path = os.path.join(path, child)
@@ -924,17 +1074,18 @@ class SiteStorage:
             'starred': False,
             'data': {},
         }
-        self._write_json(os.path.join(version_path, self.SETTING_FILE), setting)
+        self._write_version_setting_at(version_path, setting)
         return version_id
 
     def rename_version(self, site_id, version_id, new_name):
         version_path = self._web_path(site_id, version_id)
         if not os.path.isdir(version_path):
             raise FileNotFoundError('版本不存在')
-        setting = self._read_json(os.path.join(version_path, self.SETTING_FILE)) or {}
+        setting = self._read_version_setting_at(version_path)
         setting['name'] = new_name
         setting['note'] = new_name
-        self._write_json(os.path.join(version_path, self.SETTING_FILE), setting)
+        # 只改版本名/备注，不重命名版本文件夹（文件夹名保持创建时的 id）
+        self._write_version_setting_at(version_path, setting)
         return version_id
 
     def delete_version(self, site_id, version_id):
@@ -949,7 +1100,7 @@ class SiteStorage:
         version_path = self._web_path(site_id, version_id)
         if not os.path.isdir(version_path):
             return None
-        return self._read_json(os.path.join(version_path, self.SETTING_FILE))
+        return self._read_version_setting_at(version_path)
 
     def write_version_setting(self, site_id, version_id, setting):
         site_path = self._web_path(site_id)
@@ -971,10 +1122,31 @@ class SiteStorage:
             self._safe_rename_dir(version_path, new_version_path)
             version_path = new_version_path
         setting['id'] = new_id
-        self._write_json(os.path.join(version_path, self.SETTING_FILE), setting)
+        self._write_version_setting_at(version_path, setting)
         return new_id
 
     # ---------- 部署文件 ----------
+    def read_upload_records(self, site_id, version_id):
+        """读取某个版本下的快速发布履历（web/<site>/<version>/upload/log.json）。"""
+        try:
+            path = self._web_path(site_id, version_id, 'upload', 'log.json')
+        except ValueError:
+            return []
+        records = self._read_json(path) or []
+        return records if isinstance(records, list) else []
+
+    def append_upload_record(self, site_id, version_id, record):
+        """追加一条快速发布履历到该版本的 upload/log.json。"""
+        try:
+            path = self._web_path(site_id, version_id, 'upload', 'log.json')
+        except ValueError:
+            return 0
+        records = self.read_upload_records(site_id, version_id)
+        if record and isinstance(record, dict):
+            records.append(record)
+        self._write_json(path, records)
+        return len(records)
+
     def write_deploy_files(self, site_id, version_id, group, files):
         """写入某个版本下的一组部署文件。
 
@@ -1017,6 +1189,37 @@ class SiteStorage:
                 with open(abs_path, 'w', encoding='utf-8') as f:
                     f.write(content)
         return deploy_path
+
+    def read_deploy_files(self, site_id, version_id, group='deploy1'):
+        """读取某个版本部署组文件夹内的全部文件（不含根 assets 补齐）。
+
+        返回 [{'path': rel, 'content': str, 'binary': bool}, ...]；
+        二进制文件 content 为 base64（与 write_deploy_files 的 binary 约定一致）。
+        """
+        deploy_path = self._web_path(site_id, version_id, group)
+        if not os.path.isdir(deploy_path):
+            return []
+        out = []
+        for root, dirs, file_list in os.walk(deploy_path):
+            dirs[:] = [d for d in dirs if not d.startswith('.')]
+            for fn in sorted(file_list):
+                if fn.lower() in ('nul', 'con', 'prn', 'aux', 'com1', 'com2', 'lpt1'):
+                    continue
+                full = os.path.join(root, fn)
+                rel = os.path.relpath(full, deploy_path).replace('\\', '/')
+                try:
+                    with open(full, 'rb') as f:
+                        raw = f.read()
+                except Exception:
+                    continue
+                try:
+                    content = raw.decode('utf-8')
+                    is_binary = False
+                except UnicodeDecodeError:
+                    content = base64.b64encode(raw).decode('ascii')
+                    is_binary = True
+                out.append({'path': rel, 'content': content, 'binary': is_binary})
+        return out
 
     def list_version_deploy_files(self, site_id, version_id, group='deploy1'):
         """列出某个版本部署组文件夹（web/<site>/<version>/<group>）内的全部文件。
@@ -1215,7 +1418,10 @@ class SiteStorage:
         setting = self.read_site_setting(site_id)
         if setting is None:
             return ''
-        return setting.get('defaultTemplate', '')
+        v = setting.get('defaultTemplate')
+        if v is None:
+            v = (setting.get('data') or {}).get('defaultTemplate', '')
+        return v or ''
 
     def get_version_path(self, site_id, version_id):
         return self._web_path(site_id, version_id)
@@ -1409,6 +1615,181 @@ def open_folder_in_front(path):
         return False
 
 
+# 运行中的 LauncherApp 实例（用于在 HTTP 线程中调用 Tk 对话框，避免每次启动 PowerShell）
+_LAUNCHER_APP = None
+
+
+def _win32_browse_folder(title='选择文件夹', initial=''):
+    """Windows 原生文件夹选择框（SHBrowseForFolder），直接在当前线程弹出。
+    不经过 Tk、不显示主窗口；作为系统模态对话框出现在其它窗口之上。"""
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        BIF_RETURNONLYFSDIRS = 0x00000001
+        BIF_NEWDIALOGSTYLE = 0x00000040
+
+        class BROWSEINFO(ctypes.Structure):
+            _fields_ = [
+                ('hwndOwner', wintypes.HWND),
+                ('pidlRoot', ctypes.c_void_p),
+                ('pszDisplayName', wintypes.LPWSTR),
+                ('lpszTitle', wintypes.LPCWSTR),
+                ('ulFlags', wintypes.UINT),
+                ('lpfn', ctypes.c_void_p),
+                ('lParam', wintypes.LPARAM),
+                ('iImage', ctypes.c_int),
+            ]
+
+        # 不设所有者：对话框独立弹出，无需先激活主窗口（主窗口保持原状）
+        owner = None
+
+        # 后台线程：找到对话框窗口后强制置顶（即使调用线程不是前台）
+        try:
+            import threading, time as _time
+            def _topmost_loop():
+                try:
+                    for _ in range(150):
+                        hwnd = ctypes.windll.user32.FindWindowW(None, title or '选择文件夹')
+                        if hwnd:
+                            # HWND_TOPMOST, SWP_NOSIZE | SWP_NOMOVE
+                            ctypes.windll.user32.SetWindowPos(hwnd, -1, 0, 0, 0, 0, 0x0001 | 0x0002)
+                            return
+                        _time.sleep(0.1)
+                except Exception:
+                    pass
+            threading.Thread(target=_topmost_loop, daemon=True).start()
+        except Exception:
+            pass
+
+        display = ctypes.create_unicode_buffer(260)
+        bi = BROWSEINFO(owner, None, ctypes.cast(display, wintypes.LPWSTR), title or '选择文件夹',
+                        BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE, None, 0, 0)
+        shell32 = ctypes.windll.shell32
+        shell32.SHBrowseForFolderW.argtypes = [ctypes.POINTER(BROWSEINFO)]
+        shell32.SHBrowseForFolderW.restype = ctypes.c_void_p
+        shell32.SHGetPathFromIDListW.argtypes = [ctypes.c_void_p, wintypes.LPWSTR]
+        shell32.SHGetPathFromIDListW.restype = wintypes.BOOL
+        pidl = shell32.SHBrowseForFolderW(ctypes.byref(bi))
+        if not pidl:
+            return None
+        path_buf = ctypes.create_unicode_buffer(260)
+        ok = shell32.SHGetPathFromIDListW(pidl, path_buf)
+        try:
+            ctypes.windll.ole32.CoTaskMemFree(pidl)
+        except Exception:
+            pass
+        if not ok:
+            return None
+        p = path_buf.value
+        return p if p else None
+    except Exception:
+        return None
+
+
+def _win32_pick_folder_ifiledialog(title='选择文件夹', initial=''):
+    """Windows 现代文件夹选择框（IFileOpenDialog + FOS_PICKFOLDERS）。
+    打开速度快，独立弹窗并强制置顶；返回选中路径或 None（取消/失败）。"""
+    try:
+        import ctypes
+        from ctypes import wintypes, POINTER, byref, c_ulong, c_void_p, c_wchar_p, WINFUNCTYPE
+        import uuid, threading, time as _time
+
+        ole32 = ctypes.OleDLL('ole32')
+        CLSID_FileOpenDialog = uuid.UUID('{DC1C5A9C-E88A-4dde-A5A1-60F82A20AEF7}')
+        IID_IFileOpenDialog = uuid.UUID('{D57C7288-D4AD-4768-BE02-9D969532D960}')
+
+        class GUID(ctypes.Structure):
+            _fields_ = [
+                ('Data1', ctypes.c_ulong),
+                ('Data2', ctypes.c_ushort),
+                ('Data3', ctypes.c_ushort),
+                ('Data4', ctypes.c_ubyte * 8),
+            ]
+            def __init__(self, u):
+                super().__init__()
+                b = u.bytes_le
+                self.Data1 = int.from_bytes(b[0:4], 'little')
+                self.Data2 = int.from_bytes(b[4:6], 'little')
+                self.Data3 = int.from_bytes(b[6:8], 'little')
+                self.Data4 = (ctypes.c_ubyte * 8).from_buffer_copy(b[8:16])
+
+        clsid = GUID(CLSID_FileOpenDialog)
+        iid = GUID(IID_IFileOpenDialog)
+        FOS_PICKFOLDERS = 0x00000020
+        FOS_FORCEFILESYSTEM = 0x00000040
+        SIGDN_FILESYSPATH = 0x80058000
+        HRESULT_t = ctypes.c_long
+
+        init_hr = ole32.CoInitializeEx(None, 2)  # COINIT_APARTMENTTHREADED
+        com_ok = init_hr >= 0
+
+        pfd = c_void_p()
+        hr = ole32.CoCreateInstance(
+            byref(clsid), None, 1, byref(iid), byref(pfd))
+        if hr != 0 or not pfd.value:
+            if com_ok:
+                ole32.CoUninitialize()
+            return None
+
+        vtbl = ctypes.cast(pfd, POINTER(POINTER(c_void_p))).contents
+
+        SetOptions = WINFUNCTYPE(HRESULT_t, c_void_p, c_ulong)(vtbl[9])
+        SetTitle = WINFUNCTYPE(HRESULT_t, c_void_p, c_wchar_p)(vtbl[17])
+        Show = WINFUNCTYPE(HRESULT_t, c_void_p, wintypes.HWND)(vtbl[3])
+        GetResult = WINFUNCTYPE(HRESULT_t, c_void_p, POINTER(c_void_p))(vtbl[20])
+        Release = WINFUNCTYPE(c_ulong, c_void_p)(vtbl[2])
+
+        # 后台线程：找到对话框窗口后置顶并尝试激活（即使调用线程不是前台）
+        dlg_title = title or '选择文件夹'
+        def _topmost_loop():
+            try:
+                for _ in range(300):
+                    hwnd = ctypes.windll.user32.FindWindowW(None, dlg_title)
+                    if hwnd:
+                        ctypes.windll.user32.SetWindowPos(hwnd, -1, 0, 0, 0, 0, 0x0001 | 0x0002)
+                        try:
+                            ctypes.windll.user32.SetForegroundWindow(hwnd)
+                        except Exception:
+                            pass
+                        return
+                    _time.sleep(0.1)
+            except Exception:
+                pass
+        threading.Thread(target=_topmost_loop, daemon=True).start()
+
+        try:
+            SetOptions(pfd.value, FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM)
+            SetTitle(pfd.value, dlg_title)
+            hr_show = Show(pfd.value, None)  # owner=None：独立弹窗，不涉及主窗口
+            if hr_show == 0:
+                pitem = c_void_p()
+                if GetResult(pfd.value, byref(pitem)) == 0 and pitem.value:
+                    ishell_vtbl = ctypes.cast(pitem, POINTER(POINTER(c_void_p))).contents
+                    GetDisplayName = WINFUNCTYPE(HRESULT_t, c_void_p, c_ulong, POINTER(c_wchar_p))(ishell_vtbl[5])
+                    pname = c_wchar_p()
+                    if GetDisplayName(pitem.value, SIGDN_FILESYSPATH, byref(pname)) == 0 and pname.value:
+                        path = pname.value
+                        try:
+                            ctypes.windll.ole32.CoTaskMemFree(pname)
+                        except Exception:
+                            pass
+                        return path
+        finally:
+            try:
+                Release(pfd.value)
+            except Exception:
+                pass
+            if com_ok:
+                try:
+                    ole32.CoUninitialize()
+                except Exception:
+                    pass
+        return None
+    except Exception:
+        return None
+
+
 class SilentHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     """静默 HTTP 处理器 - 不写日志 + 强制禁止缓存（CEF 内嵌浏览器需要）"""
 
@@ -1434,9 +1815,10 @@ class SilentHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         super().send_header(keyword, value)
 
     def _collect_deploy_files(self, payload):
-        """收集部署文件列表，返回 [(rel_path, content, is_binary), ...]
+        """收集部署文件列表，返回 [(rel_path, content, is_binary, mtime), ...]
         生成的 HTML（index/footer/commit）来自 payload，其余静态资源从磁盘读取。
-        与打包导出共用同一份排除规则，确保「发布」与「打包导出」文件一致。"""
+        与打包导出共用同一份排除规则，确保「发布」与「打包导出」文件一致。
+        mtime 供快速发布做本地修改判断（生成文件为 0 = 总是上传）。"""
         project_dir = self.directory
 
         index_html = payload.get('indexHtml', '')
@@ -1461,11 +1843,11 @@ class SilentHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         files = []
         # 1. 生成的 HTML 优先写入
         if index_html:
-            files.append(('index.html', _portable_base_html(index_html, 0), False))
+            files.append(('index.html', _portable_base_html(index_html, 0), False, 0))
         if about_html:
-            files.append(('footer/about.html', _portable_base_html(about_html, 1), False))
+            files.append(('footer/about.html', _portable_base_html(about_html, 1), False, 0))
         if commit_html:
-            files.append(('footer/commit.html', _portable_base_html(commit_html, 1), False))
+            files.append(('footer/commit.html', _portable_base_html(commit_html, 1), False, 0))
 
         # 2. 遍历项目目录，收集静态资源（仅当前目录内、未修改即原样打包）
         for root, dirs, file_list in os.walk(project_dir):
@@ -1518,7 +1900,11 @@ class SilentHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 except UnicodeDecodeError:
                     content = base64.b64encode(raw).decode('ascii')
                     is_binary = True
-                files.append((rel_path, content, is_binary))
+                try:
+                    mtime = int(os.path.getmtime(full_path))
+                except Exception:
+                    mtime = 0
+                files.append((rel_path, content, is_binary, mtime))
 
         # 3. 额外文件/文件夹（includePaths）：强制包含，优先级高于排除规则
         #    支持文件或文件夹（文件夹递归），但仍禁止跳出项目根目录
@@ -1548,7 +1934,11 @@ class SilentHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     except UnicodeDecodeError:
                         content = base64.b64encode(raw).decode('ascii')
                         is_binary = True
-                    forced.append((rel, content, is_binary))
+                    try:
+                        mtime = int(os.path.getmtime(abs_inc))
+                    except Exception:
+                        mtime = 0
+                    forced.append((rel, content, is_binary, mtime))
                 elif os.path.isdir(abs_inc):
                     for root, dirs, file_list in os.walk(abs_inc):
                         for fn in file_list:
@@ -1571,20 +1961,24 @@ class SilentHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                             except UnicodeDecodeError:
                                 content = base64.b64encode(raw).decode('ascii')
                                 is_binary = True
-                            forced.append((rel, content, is_binary))
+                            try:
+                                mtime = int(os.path.getmtime(full))
+                            except Exception:
+                                mtime = 0
+                            forced.append((rel, content, is_binary, mtime))
             # 覆盖同名文件（includePaths 优先级最高）
-            existing = {p: i for i, (p, _, _) in enumerate(files)}
-            for rel, content, is_binary in forced:
+            existing = {p: i for i, (p, _, _, _) in enumerate(files)}
+            for rel, content, is_binary, mtime in forced:
                 if rel in existing:
-                    files[existing[rel]] = (rel, content, is_binary)
+                    files[existing[rel]] = (rel, content, is_binary, mtime)
                 else:
-                    files.append((rel, content, is_binary))
+                    files.append((rel, content, is_binary, mtime))
 
         # 4. 额外生成文件（extraFiles，如 SEO 的 robots.txt / sitemap.xml / 站点验证文件）：
         #    优先级最高，覆盖同名文件。格式 [{'path','content','binary'}]
         extra_files = payload.get('extraFiles', []) or []
         if extra_files:
-            existing = {p: i for i, (p, _, _) in enumerate(files)}
+            existing = {p: i for i, (p, _, _, _) in enumerate(files)}
             for item in extra_files:
                 if not isinstance(item, dict):
                     continue
@@ -1594,9 +1988,9 @@ class SilentHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 content = item.get('content') or ''
                 is_binary = bool(item.get('binary'))
                 if rel in existing:
-                    files[existing[rel]] = (rel, content, is_binary)
+                    files[existing[rel]] = (rel, content, is_binary, 0)
                 else:
-                    files.append((rel, content, is_binary))
+                    files.append((rel, content, is_binary, 0))
 
         return files
 
@@ -1606,7 +2000,7 @@ class SilentHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         files = self._collect_deploy_files(payload)
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-            for rel_path, content, is_binary in files:
+            for rel_path, content, is_binary, _mtime in files:
                 if is_binary:
                     zf.writestr(rel_path, base64.b64decode(content))
                 else:
@@ -1644,7 +2038,11 @@ class SilentHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         """atype 仅允许 'Github' / 'cloudflare' / 'vercel' / 'netlify' / 'server' / 'active'，避免路径穿越。"""
         if atype not in ('Github', 'cloudflare', 'vercel', 'netlify', 'server', 'active'):
             raise ValueError('非法的账号类型: %s' % atype)
-        return os.path.join(self.directory, 'password', '%s.json' % atype)
+        cfg = load_config()
+        pdir = (cfg.get('password_dir') or '').strip()
+        if pdir:
+            return os.path.join(pdir, '%s.json' % atype)
+        return os.path.join(get_data_root(self.directory), 'password', '%s.json' % atype)
 
     def _read_accounts_file(self, atype):
         p = self._accounts_file(atype)
@@ -1719,6 +2117,86 @@ class SilentHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         if self.path.split('?')[0] == '/api/accounts':
             self._handle_accounts_get()
             return
+        if self.path.split('?')[0] == '/api/password-dir':
+            try:
+                cfg = load_config()
+                pdir = (cfg.get('password_dir') or '').strip()
+                default_dir = os.path.join(
+                    os.environ.get('LOCALAPPDATA', os.path.expanduser('~')), 'NavEditor', 'password')
+                self._send_json({
+                    'ok': True,
+                    'dir': pdir or os.path.join(self.directory, 'password'),
+                    'configured': bool(pdir),
+                    'defaultDir': default_dir
+                })
+            except Exception as e:
+                self._send_error(str(e))
+            return
+        if self.path.split('?')[0] == '/api/choose-password-dir':
+            # 弹出 Windows 原生文件夹选择对话框，返回选中的绝对路径
+            try:
+                import platform
+                default_dir = os.path.join(
+                    os.environ.get('LOCALAPPDATA', os.path.expanduser('~')), 'NavEditor', 'password')
+                selected = None
+                if platform.system() == 'Windows':
+                    # 只尝试一次对话框，取消/失败即返回（避免关掉一个又弹另一种）
+                    if _LAUNCHER_APP is not None:
+                        try:
+                            selected = _LAUNCHER_APP.choose_folder_sync('选择账号存储文件夹（Token 将保存在该目录）', default_dir)
+                        except Exception:
+                            selected = None
+                    else:
+                        selected = _win32_pick_folder_ifiledialog('选择账号存储文件夹（Token 将保存在该目录）', default_dir)
+                else:
+                    selected = default_dir
+                if not selected:
+                    self._send_json({'ok': False, 'error': '未选择文件夹'})
+                else:
+                    self._send_json({'ok': True, 'dir': os.path.abspath(selected)})
+            except Exception as e:
+                self._send_error(str(e))
+            return
+        if self.path.split('?')[0] == '/api/data-dir':
+            try:
+                cfg = load_config()
+                ddir = (cfg.get('data_dir') or '').strip()
+                default_dir = os.path.join(
+                    os.environ.get('LOCALAPPDATA', os.path.expanduser('~')), 'NavEditor', 'data')
+                self._send_json({
+                    'ok': True,
+                    'dir': ddir or default_dir,
+                    'configured': bool(ddir),
+                    'defaultDir': default_dir
+                })
+            except Exception as e:
+                self._send_error(str(e))
+            return
+        if self.path.split('?')[0] == '/api/choose-data-dir':
+            # 弹出 Windows 原生文件夹选择对话框，返回选中的绝对路径
+            try:
+                import platform
+                default_dir = os.path.join(
+                    os.environ.get('LOCALAPPDATA', os.path.expanduser('~')), 'NavEditor', 'data')
+                selected = None
+                if platform.system() == 'Windows':
+                    # 只尝试一次对话框，取消/失败即返回（避免关掉一个又弹另一种）
+                    if _LAUNCHER_APP is not None:
+                        try:
+                            selected = _LAUNCHER_APP.choose_folder_sync('选择数据目录（站点数据将保存在该目录）', default_dir)
+                        except Exception:
+                            selected = None
+                    else:
+                        selected = _win32_pick_folder_ifiledialog('选择数据目录（站点数据将保存在该目录）', default_dir)
+                else:
+                    selected = default_dir
+                if not selected:
+                    self._send_json({'ok': False, 'error': '未选择文件夹'})
+                else:
+                    self._send_json({'ok': True, 'dir': os.path.abspath(selected)})
+            except Exception as e:
+                self._send_error(str(e))
+            return
         # ===== 文件式站点/版本存储 API =====
         storage = SiteStorage(self.directory)
         if self.path.split('?')[0] == '/api/storage/sites':
@@ -1772,6 +2250,36 @@ class SilentHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     self._send_error('版本不存在', 404)
                     return
                 self._send_json({'ok': True, 'setting': setting})
+            except Exception as e:
+                self._send_error(str(e))
+            return
+        if self.path.split('?')[0] == '/api/storage/version-upload-records':
+            try:
+                qs = self.path.split('?', 1)[1] if '?' in self.path else ''
+                params = {}
+                for part in qs.split('&'):
+                    if '=' in part:
+                        k, v = part.split('=', 1)
+                        params[k] = urllib.parse.unquote(v)
+                site = params.get('site', '')
+                version = params.get('version', '')
+                self._send_json({'ok': True, 'records': storage.read_upload_records(site, version)})
+            except Exception as e:
+                self._send_error(str(e))
+            return
+        if self.path.split('?')[0] == '/api/storage/version-deploy-read':
+            try:
+                qs = self.path.split('?', 1)[1] if '?' in self.path else ''
+                params = {}
+                for part in qs.split('&'):
+                    if '=' in part:
+                        k, v = part.split('=', 1)
+                        params[k] = urllib.parse.unquote(v)
+                site = params.get('site', '')
+                version = params.get('version', '')
+                group = params.get('group', 'deploy1')
+                files = storage.read_deploy_files(site, version, group)
+                self._send_json({'ok': True, 'files': files})
             except Exception as e:
                 self._send_error(str(e))
             return
@@ -1937,6 +2445,15 @@ class SilentHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         if not os.path.isfile(fs_path) or not (fs_path == base_dir or fs_path.startswith(base_dir + os.sep)):
             if self._try_serve_not_found(rel_path):
                 return
+        # 数据目录外置：/web/ 路径从数据根目录提供（web 在项目内时走上面的常规逻辑）
+        data_root = get_data_root(self.directory)
+        if data_root != self.directory:
+            web_rel = urllib.parse.unquote(self.path.split('?', 1)[0].lstrip('/'))
+            if web_rel.startswith('web/'):
+                fs_web = os.path.abspath(os.path.join(data_root, web_rel))
+                if fs_web.startswith(os.path.abspath(data_root) + os.sep) and os.path.isfile(fs_web):
+                    self._send_file_content(fs_web, self.guess_type(fs_web) or 'application/octet-stream', 200)
+                    return
         super().do_GET()
 
     def _match_404_rule(self, cfg, path):
@@ -2024,6 +2541,65 @@ class SilentHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         # ===== 账号磁盘存储 API（password/ 下按类型分文件）=====
         if self.path.split('?')[0] == '/api/accounts':
             self._handle_accounts_post()
+            return
+        if self.path.split('?')[0] == '/api/password-dir':
+            try:
+                content_length = int(self.headers.get('Content-Length', 0))
+                body = self.rfile.read(content_length) if content_length > 0 else b'{}'
+                payload = json.loads(body.decode('utf-8'))
+                pdir = (payload.get('dir') or '').strip()
+                if not pdir:
+                    self._send_error('目录不能为空', 400)
+                    return
+                pdir = os.path.abspath(pdir)
+                cfg = load_config()
+                old_dir = os.path.join(self.directory, 'password')
+                cfg['password_dir'] = pdir
+                if save_config(cfg):
+                    # 迁移旧位置账号文件（仅当旧目录存在且目标目录还没有对应文件）
+                    if os.path.isdir(old_dir) and pdir != old_dir:
+                        os.makedirs(pdir, exist_ok=True)
+                        for fn in os.listdir(old_dir):
+                            if fn.lower().endswith('.json'):
+                                src = os.path.join(old_dir, fn)
+                                dst = os.path.join(pdir, fn)
+                                if os.path.isfile(src) and not os.path.isfile(dst):
+                                    try:
+                                        import shutil
+                                        shutil.copy2(src, dst)
+                                    except Exception:
+                                        pass
+                    self._send_json({'ok': True, 'dir': pdir})
+                else:
+                    self._send_error('保存配置失败')
+            except Exception as e:
+                self._send_error(str(e))
+            return
+        if self.path.split('?')[0] == '/api/data-dir':
+            try:
+                content_length = int(self.headers.get('Content-Length', 0))
+                body = self.rfile.read(content_length) if content_length > 0 else b'{}'
+                payload = json.loads(body.decode('utf-8'))
+                ddir = (payload.get('dir') or '').strip()
+                if not ddir:
+                    self._send_error('目录不能为空', 400)
+                    return
+                ddir = os.path.abspath(ddir)
+                project_dir = os.path.abspath(self.directory)
+                # 防止把数据目录设到项目目录本身或其内部（会导致数据互相嵌套/迁移循环）
+                if ddir == project_dir or ddir.startswith(project_dir + os.sep):
+                    self._send_error('数据目录不能设置在项目目录内部，请选择其它位置（例如 D:\\NavEditorData）', 400)
+                    return
+                cfg = load_config()
+                cfg['data_dir'] = ddir
+                if save_config(cfg):
+                    # 迁移旧数据（web/、password/ 从项目目录复制到新数据目录，不删除原文件）
+                    migrate_data_root(project_dir, ddir)
+                    self._send_json({'ok': True, 'dir': ddir})
+                else:
+                    self._send_error('保存配置失败')
+            except Exception as e:
+                self._send_error(str(e))
             return
         # ===== 服务器 / 本地部署 API（账号类型 server）=====
         if self.path.split('?')[0] == '/api/server-check':
@@ -2163,6 +2739,10 @@ class SilentHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                         payload.get('files')
                     )
                     self._send_json({'ok': True, 'path': path})
+                    return
+                if action == 'version-upload-record':
+                    storage.append_upload_record(payload.get('site'), payload.get('version'), payload.get('record') or {})
+                    self._send_json({'ok': True})
                     return
                 if action == 'default-template':
                     op = payload.get('action')
@@ -2410,7 +2990,7 @@ class SilentHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 body = self.rfile.read(content_length) if content_length > 0 else b'{}'
                 payload = json.loads(body.decode('utf-8'))
                 files = self._collect_deploy_files(payload)
-                out = [{'path': p, 'content': c, 'binary': b} for p, c, b in files]
+                out = [{'path': p, 'content': c, 'binary': b, 'mtime': m} for p, c, b, m in files]
                 msg = json.dumps({'ok': True, 'files': out}, ensure_ascii=False)
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json; charset=utf-8')
@@ -2729,20 +3309,41 @@ class SilentHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                         data = fwd_body
 
                 req = urllib.request.Request(url, data=data, method=method)
+                # GitHub API 强制要求 User-Agent；未带时补一个浏览器风格 UA，降低被重置概率
+                if not any(k.lower() == 'user-agent' for k in fwd_headers):
+                    fwd_headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 NavEditor/1.0'
                 for k, v in fwd_headers.items():
                     req.add_header(k, v)
 
-                try:
-                    with urllib.request.urlopen(req, timeout=60) as resp:
-                        status = resp.status
-                        resp_body = resp.read()
-                        resp_ct = resp.headers.get('Content-Type', '')
-                except urllib.error.HTTPError as e:
-                    status = e.code
-                    resp_body = e.read()
-                    resp_ct = e.headers.get('Content-Type', '')
-                except Exception as e:
-                    err_msg = json.dumps({'status': 0, 'error': '代理请求失败: ' + str(e)}, ensure_ascii=False)
+                # 网络瞬断/连接被重置/超时时自动重试（最多 3 次，指数退避）
+                import time as _time
+                status = None
+                resp_body = None
+                resp_ct = ''
+                last_exc = None
+                for _attempt in range(3):
+                    try:
+                        with urllib.request.urlopen(req, timeout=60) as resp:
+                            status = resp.status
+                            resp_body = resp.read()
+                            resp_ct = resp.headers.get('Content-Type', '')
+                        break
+                    except urllib.error.HTTPError as e:
+                        status = e.code
+                        resp_body = e.read()
+                        resp_ct = e.headers.get('Content-Type', '')
+                        break
+                    except Exception as e:
+                        last_exc = e
+                        msg_l = str(e)
+                        retryable = ('10054' in msg_l or '10060' in msg_l or '10061' in msg_l
+                                     or '11001' in msg_l or 'timed out' in msg_l.lower() or 'timeout' in msg_l.lower())
+                        if _attempt < 2 and retryable:
+                            _time.sleep(0.8 * (_attempt + 1))
+                            continue
+                        break
+                if status is None:
+                    err_msg = json.dumps({'status': 0, 'error': '代理请求失败: ' + str(last_exc)}, ensure_ascii=False)
                     self.send_response(502)
                     self.send_header('Content-Type', 'application/json; charset=utf-8')
                     self.send_header('Cache-Control', 'no-store')
@@ -3048,6 +3649,8 @@ class RoundedButton(tk.Canvas):
 
 class LauncherApp:
     def __init__(self):
+        global _LAUNCHER_APP
+        _LAUNCHER_APP = self
         self._enable_dpi_awareness()
         self._set_windows_app_id()
         self.root = tk.Tk()
@@ -3093,6 +3696,10 @@ class LauncherApp:
         self.server_thread = None
         self.project_dir = get_project_dir()
         self.config = load_config()
+        # 数据目录外置：配置了 data_dir 且与项目目录不同时，迁移旧数据
+        _data_root = get_data_root(self.project_dir)
+        if _data_root != self.project_dir:
+            migrate_data_root(self.project_dir, _data_root)
         self._register_fa_font()
         _startup_log('__init__ start; frozen=%s theme=%s' % (getattr(sys, 'frozen', False), self.config.get('theme')))
         # 应用已保存的主题（浅 / 深）
@@ -3412,13 +4019,13 @@ class LauncherApp:
             font=("Consolas", 9),
             bg=COLORS['bg_elevated'], fg=COLORS['text_mute']
         ).pack(side=tk.LEFT, padx=14)
-        # 右侧：v5.0 最右，其左侧依次为 @yiming2016 与 GitHub 图标（点击打开仓库）
+        # 右侧：v1.0 最右，其左侧依次为 @yiming2016 与 GitHub 图标（点击打开仓库）
         def _open_github(_e=None):
             webbrowser.open("https://github.com/yiming2016/NavEditor")
         gh_icon_text = "\uf09b" if getattr(self, '_fa_font_loaded', False) else "GH"
         gh_icon_font = ("Font Awesome 5 Brands", 11) if getattr(self, '_fa_font_loaded', False) else ("Microsoft YaHei UI", 8, "bold")
         tk.Label(
-            footer, text="v5.0",
+            footer, text="v1.0",
             font=("Consolas", 9),
             bg=COLORS['bg_elevated'], fg=COLORS['text_mute']
         ).pack(side=tk.RIGHT, padx=(4, 14))
@@ -3793,6 +4400,57 @@ class LauncherApp:
         except Exception:
             pass
 
+    def choose_folder_sync(self, title, initial_dir=''):
+        """从任意线程调用：在 Tk 主线程弹出文件夹选择框，返回选中路径或 None。
+        利用已运行的 Tk 主循环，弹窗即时显示，无需启动新的 PowerShell 进程。"""
+        result = {}
+        ev = threading.Event()
+
+        def _ask():
+            try:
+                try:
+                    import tkinter as _tk
+                    from tkinter import filedialog
+                    # 用隐藏的 Toplevel 承载对话框：不触碰/不显示主界面，
+                    # 并通过 topmost 保证选择框出现在其它窗口之上
+                    helper = _tk.Toplevel(self.root)
+                    helper.withdraw()
+                    helper.attributes('-topmost', True)
+                    helper.geometry('1x1+0+0')
+                    helper.update_idletasks()
+                    try:
+                        result['path'] = filedialog.askdirectory(
+                            parent=helper,
+                            title=title or '选择文件夹',
+                            initialdir=initial_dir or ''
+                        )
+                    finally:
+                        try:
+                            helper.destroy()
+                        except Exception:
+                            pass
+                except Exception:
+                    # 备用：直接用主窗口承载（仍不强行显示主界面）
+                    from tkinter import filedialog
+                    result['path'] = filedialog.askdirectory(
+                        parent=self.root,
+                        title=title or '选择文件夹',
+                        initialdir=initial_dir or ''
+                    )
+            except Exception as e:
+                result['error'] = str(e)
+            finally:
+                ev.set()
+
+        try:
+            self.root.after(0, _ask)
+        except Exception:
+            return None
+        ev.wait(timeout=600)
+        if 'error' in result or not result.get('path'):
+            return None
+        return result.get('path') or None
+
     def _lan_ip(self):
         """获取局域网 IP（用于局域网访问地址）"""
         try:
@@ -3961,7 +4619,7 @@ class LauncherApp:
             bg=COLORS['bg_elevated'], fg=COLORS['text_dim']
         ).pack(anchor=tk.W, pady=(6, 0))
         tk.Label(
-            tc_inner, text="版本 v5.0  ·  本地优先  ·  一键部署",
+            tc_inner, text="版本 v1.0  ·  本地优先  ·  一键部署",
             font=("Microsoft YaHei UI", 9),
             bg=COLORS['bg_elevated'], fg=COLORS['text_mute']
         ).pack(anchor=tk.W, pady=(8, 0))

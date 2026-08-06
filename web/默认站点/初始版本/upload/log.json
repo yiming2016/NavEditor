@@ -1,0 +1,15 @@
+[
+  {
+    "at": 1786056076079,
+    "mode": "quick",
+    "ok": true,
+    "files": 243,
+    "bytes": 49683333,
+    "account": {
+      "id": "mshf9y8b763jw3",
+      "name": "go",
+      "type": "github",
+      "target": "yiming2016/go"
+    }
+  }
+]

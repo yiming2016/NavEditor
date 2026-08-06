@@ -1,0 +1,12 @@
+# 构建产物（PyInstaller 打包输出，可随时重建）
+build/
+dist/
+__pycache__/
+*.pyc
+
+# 运行日志
+launcher_startup.log
+
+# 部署临时压缩包
+deploy.zip
+deploy_*.zip

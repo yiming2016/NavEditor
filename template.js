@@ -81,6 +81,9 @@ const TEMPLATE = `
                     </button>
                     <Teleport to="body">
                         <div class="toolbar-dropdown-menu" v-if="publishMenuOpen" :style="publishMenuStyle" @click.stop>
+                            <button class="dropdown-item" v-if="data.deploySettings.defaultTop !== 'quick'" @click="quickPublish()">
+                                <i class="fas fa-bolt"></i> <span>快速发布</span>
+                            </button>
                             <button class="dropdown-item" v-if="data.deploySettings.defaultTop !== 'incremental'" @click="syncToCloudflare(false); closePublishMenu()">
                                 <i class="fas fa-sync"></i> <span>增量发布</span>
                             </button>
@@ -316,7 +319,7 @@ const TEMPLATE = `
                         <button class="btn-icon" @click="closePublishSettings"><i class="fas fa-times"></i></button>
                     </div>
                     <div class="modal-body" style="max-height:68vh;overflow:auto">
-                        <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">分别设置「增量发布」与「全量发布」包含的文件；并指定默认置顶按钮（点主按钮即执行该项）。</p>
+                        <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">分别设置「快速/增量/全量发布」包含的文件；并指定默认置顶按钮（点主按钮即执行该项）。</p>
                         <!-- 增量发布文件 -->
                         <div style="border:1px solid var(--border);border-radius:6px;margin-bottom:8px;font-size:13px;overflow:hidden">
                             <div style="padding:8px 10px;font-weight:600"><i class="fas fa-sync" style="margin-right:6px"></i>增量发布文件（只上传以下文件中发生变更者）</div>
@@ -357,6 +360,7 @@ const TEMPLATE = `
                             <div style="padding:8px 10px">
                                 <div style="font-weight:600;margin-bottom:8px">默认置顶按钮（点主按钮即执行）</div>
                                 <div style="display:flex;gap:14px;flex-wrap:wrap">
+                                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" value="quick" v-model="data.deploySettings.defaultTop"> 快速发布</label>
                                     <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" value="incremental" v-model="data.deploySettings.defaultTop"> 增量发布</label>
                                     <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" value="full" v-model="data.deploySettings.defaultTop"> 全量发布</label>
                                 </div>
@@ -366,6 +370,47 @@ const TEMPLATE = `
                     <div class="modal-footer" style="justify-content:space-between">
                         <button class="btn btn-outline" @click="resetPublishSettings">恢复默认</button>
                         <button class="btn btn-primary" @click="closePublishSettings">完成</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 发布前未保存询问弹窗 -->
+            <div v-if="modal.publishSavePrompt" class="modal-overlay" style="z-index:10000" @keyup.esc="cancelPublishSave">
+                <div class="modal" style="max-width:420px">
+                    <div class="modal-header">
+                        <h3 style="display:flex;align-items:center;gap:8px;color:#e65100">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <span>未保存的修改</span>
+                        </h3>
+                        <button class="btn-icon" @click="cancelPublishSave"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="modal-body" style="text-align:center;padding:24px">
+                        <p style="font-size:14px;color:var(--text);margin-bottom:8px">有未保存的修改，发布前需要先保存</p>
+                        <p style="font-size:12px;color:var(--text-muted)">保存后将继续进行发布确认</p>
+                    </div>
+                    <div class="modal-footer" style="justify-content:space-between">
+                        <button class="btn" @click="cancelPublishSave">取消</button>
+                        <button class="btn btn-primary" @click="confirmPublishSave" style="margin-left:8px">
+                            <i class="fas fa-save"></i> 保存并继续
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 发布确认弹窗（增量/全量） -->
+            <div v-if="modal.publishConfirm" class="modal-overlay" @keyup.esc="cancelPublish">
+                <div class="modal" style="max-width:440px">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-cloud-upload-alt" style="color:var(--danger)"></i> {{ publishConfirmText.title }}</h3>
+                        <button class="btn-icon" @click="cancelPublish"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="modal-body">
+                        <p style="font-size:14px;font-weight:600;margin:0 0 10px">{{ publishConfirmText.line1 }}</p>
+                        <p style="font-size:13px;color:var(--danger);margin:0">{{ publishConfirmText.line2 }}</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn" @click="cancelPublish">取消</button>
+                        <button class="btn btn-danger" @click="confirmPublish">确认发布</button>
                     </div>
                 </div>
             </div>
@@ -592,7 +637,7 @@ const TEMPLATE = `
 
         <!-- 站点设置 弹窗 -->
         <div v-if="modal.headerConfig" class="modal-overlay">
-            <div class="modal" style="max-width:880px">
+            <div class="modal" style="width:880px;max-width:94vw">
                 <div class="modal-header">
                     <h3><i class="fas fa-cog"></i> 站点设置</h3>
                     <button class="btn-icon" @click="modal.headerConfig = false"><i class="fas fa-times"></i></button>
@@ -618,12 +663,12 @@ const TEMPLATE = `
                         </div>
                         <div class="form-group" style="margin-top:10px">
                             <label class="form-label">路由规则（URL 模式 → 指定 404 模板，未命中则用默认）</label>
-                            <div v-for="(rule, i) in editForm.headerConfig.error404.rules" :key="i" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
-                                <input class="form-input" v-model="rule.pattern" placeholder="/test.html/*/516513  （* 为任意字符，可多个 *）" style="flex:1;min-width:240px;font-family:monospace">
+                            <div v-for="(rule, i) in editForm.headerConfig.error404.rules" :key="i" style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+                                <input class="form-input" v-model="rule.pattern" placeholder="例如 /test/* （* 为任意字符，可多个，命中 baidu.com/test/任意内容）" style="flex:1;min-width:0;font-family:monospace">
                                 <select class="form-input" v-model="rule.template" style="width:170px">
                                     <option v-for="tpl in editForm.headerConfig.error404.templates" :key="tpl" :value="tpl">{{ tpl }}</option>
                                 </select>
-                                <button class="btn-icon" @click="removeError404Rule(i)" title="删除规则"><i class="fas fa-trash"></i></button>
+                                <button class="btn-icon" @click="removeError404Rule(i)" title="删除规则"><i class="fas fa-trash" style="color:var(--danger)"></i></button>
                             </div>
                             <button class="btn-sm" @click="addError404Rule()" style="margin-top:4px"><i class="fas fa-plus"></i> 添加规则</button>
                         </div>
@@ -684,51 +729,72 @@ const TEMPLATE = `
                         <div class="form-group">
                             <label class="form-label">说明文字（首行，可包含邮箱）</label>
                             <textarea class="form-textarea" rows="2" v-model="editForm.headerConfig.footer.note"
-                                      placeholder="本站内容源自互联网…联系邮箱：xxx@xxx.com"></textarea>
+                                      placeholder="本站内容来自于网络，不对网站内容负责"></textarea>
                         </div>
                         <div class="form-row">
                             <div class="form-group">
                                 <label class="form-label">版权前缀</label>
                                 <input class="form-input" v-model="editForm.headerConfig.footer.copyright"
-                                       placeholder="© 2021 - 2023 By">
+                                       placeholder="@2025 By">
                             </div>
                             <div class="form-group">
                                 <label class="form-label">版权名称（链接显示文字）</label>
                                 <input class="form-input" v-model="editForm.headerConfig.footer.copyrightName"
-                                       placeholder="Web_tool">
+                                       placeholder="NavEditor">
                             </div>
                         </div>
                         <div class="form-group">
                             <label class="form-label">版权链接 URL</label>
                             <input class="form-input" v-model="editForm.headerConfig.footer.copyrightUrl"
-                                   placeholder="https://github.com/xxx/xxx">
+                                   placeholder="https://github.com/yiming2016/NavEditor">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">备案域名<span style="color:var(--text-muted);font-size:12px;margin-left:6px">（不显示在访客页面，仅用于备案查询链接自动填入）</span></label>
+                            <input class="form-input" v-model="editForm.headerConfig.footer.domain"
+                                   placeholder="example.com（主域名，不带 http:// 和 www）">
                         </div>
                         <div class="form-row">
                             <div class="form-group">
-                                <label class="form-label">备案号</label>
+                                <label class="form-label">ICP备案</label>
                                 <input class="form-input" v-model="editForm.headerConfig.footer.beian"
-                                       placeholder="京ICP备xxxxxxxx号">
+                                       placeholder="粤ICP备xxxxxxxx号">
                             </div>
                             <div class="form-group">
-                                <label class="form-label">备案查询链接</label>
+                                <label class="form-label">ICP链接</label>
                                 <input class="form-input" v-model="editForm.headerConfig.footer.beianUrl"
-                                       placeholder="http://beian.miit.gov.cn/">
+                                       placeholder="https://beian.miit.gov.cn/#/Integrated/recordQuery">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">公安备案</label>
+                                <input class="form-input" v-model="editForm.headerConfig.footer.gongan"
+                                       placeholder="粤公网安备xxxxxxxx号">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">公安链接</label>
+                                <input class="form-input" v-model="editForm.headerConfig.footer.gonganUrl"
+                                       placeholder="https://beian.mps.gov.cn/#/query/webSearch">
                             </div>
                         </div>
                         <div class="footer-config-preview">
                             <div class="footer-config-preview-hint">实际效果预览：</div>
                             <div class="footer-config-preview-content">
-                                {{ editForm.headerConfig.footer.note }}<br v-if="editForm.headerConfig.footer.copyrightName || editForm.headerConfig.footer.beian"/>
-                                <template v-if="editForm.headerConfig.footer.copyright">
-                                    {{ editForm.headerConfig.footer.copyright }}
+                                {{ editForm.headerConfig.footer.note }}<br v-if="editForm.headerConfig.footer.copyrightName || editForm.headerConfig.footer.beian || editForm.headerConfig.footer.gongan"/>
+                                <template v-if="editForm.headerConfig.footer.copyrightName">
+                                    <template v-if="editForm.headerConfig.footer.copyright">{{ editForm.headerConfig.footer.copyright }} </template>
+                                    <a v-if="editForm.headerConfig.footer.copyrightUrl"
+                                       :href="editForm.headerConfig.footer.copyrightUrl" target="_blank" rel="noopener">{{ editForm.headerConfig.footer.copyrightName }}</a>
+                                    <span v-else>{{ editForm.headerConfig.footer.copyrightName }}</span>
                                 </template>
-                                <a v-if="editForm.headerConfig.footer.copyrightUrl && editForm.headerConfig.footer.copyrightName"
-                                   :href="editForm.headerConfig.footer.copyrightUrl">{{ editForm.headerConfig.footer.copyrightName }}</a>
-                                <span v-else-if="editForm.headerConfig.footer.copyrightName">{{ editForm.headerConfig.footer.copyrightName }}</span>
-                                <template v-if="editForm.headerConfig.footer.beian"> | </template>
+                                <template v-if="editForm.headerConfig.footer.copyrightName && (editForm.headerConfig.footer.beian || editForm.headerConfig.footer.gongan)"> | </template>
                                 <a v-if="editForm.headerConfig.footer.beianUrl && editForm.headerConfig.footer.beian"
-                                   :href="editForm.headerConfig.footer.beianUrl">{{ editForm.headerConfig.footer.beian }}</a>
+                                   :href="editForm.headerConfig.footer.beianUrl" target="_blank" rel="noopener">{{ editForm.headerConfig.footer.beian }}</a>
                                 <span v-else-if="editForm.headerConfig.footer.beian">{{ editForm.headerConfig.footer.beian }}</span>
+                                <template v-if="editForm.headerConfig.footer.beian && editForm.headerConfig.footer.gongan"> | </template>
+                                <a v-if="editForm.headerConfig.footer.gonganUrl && editForm.headerConfig.footer.gongan"
+                                   :href="editForm.headerConfig.footer.gonganUrl" target="_blank" rel="noopener"><img src="assets/images/gongan.png" alt="公安备案" style="display:inline-block;vertical-align:middle;width:12px;height:auto;margin-right:3px"/>{{ editForm.headerConfig.footer.gongan }}</a>
+                                <span v-else-if="editForm.headerConfig.footer.gongan"><img src="assets/images/gongan.png" alt="公安备案" style="display:inline-block;vertical-align:middle;width:12px;height:auto;margin-right:3px"/>{{ editForm.headerConfig.footer.gongan }}</span>
                             </div>
                         </div>
                     </div>
@@ -874,8 +940,8 @@ const TEMPLATE = `
                                 <textarea class="form-textarea" v-model="editForm.site.description" placeholder="简要介绍这个网站" rows="4"></textarea>
                             </div>
 
-                            <!-- === 闪烁模块（位于右侧表单列内） === -->
-                            <div class="form-section" style="margin-top:16px;padding-top:14px;border-top:1px solid #e8eaed">
+                            <!-- === 闪烁模块（位于右侧表单列内，向左加宽到左侧空白处，弹窗总宽不变） === -->
+                            <div class="form-section" style="margin-top:16px;padding-top:14px;border-top:1px solid #e8eaed;margin-left:-148px;padding-right:0">
                                 <div class="form-group" style="margin-bottom:0">
                                     <div class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer" @click="editForm.site.blink.enabled = !editForm.site.blink.enabled">
                                         <span class="toggle-switch" :class="{ 'active': editForm.site.blink.enabled }" style="position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0;cursor:pointer">
@@ -894,22 +960,22 @@ const TEMPLATE = `
                                         <div style="display:flex;gap:8px;flex-wrap:wrap">
                                             <!-- 疯狂闪烁：快速、高频、醒目 -->
                                             <button type="button" class="btn btn-sm"
-                                                    :style="{ background: editForm.site.blink.intensity==='crazy' ? '#fff0f0' : '#f8f9fa', borderColor: editForm.site.blink.intensity==='crazy' ? '#e53e3e' : '#ddd', color: editForm.site.blink.intensity==='crazy' ? '#e53e3e' : '#555', fontSize:'12px', padding:'5px 10px' }"
+                                                    :style="{ background: editForm.site.blink.intensity==='crazy' ? '#f0f3ff' : '#f8f9fa', borderColor: editForm.site.blink.intensity==='crazy' ? '#597ef7' : '#ddd', color: editForm.site.blink.intensity==='crazy' ? '#597ef7' : '#555', fontSize:'12px', padding:'5px 10px' }"
                                                     @click.prevent="applyBlinkPreset('crazy')"
                                                     style="border-radius:6px;cursor:pointer;border:1px solid #ddd;background:#f8f9fa;color:#555;font-size:12px;padding:5px 10px">🔥 疯狂闪烁</button>
                                             <!-- 柔和闪烁：慢速、低频、温和 -->
                                             <button type="button" class="btn btn-sm"
-                                                    :style="{ background: editForm.site.blink.intensity==='soft' ? '#f0f9ff' : '#f8f9fa', borderColor: editForm.site.blink.intensity==='soft' ? '#3182ce' : '#ddd', color: editForm.site.blink.intensity==='soft' ? '#3182ce' : '#555', fontSize:'12px', padding:'5px 10px' }"
+                                                    :style="{ background: editForm.site.blink.intensity==='soft' ? '#f0f3ff' : '#f8f9fa', borderColor: editForm.site.blink.intensity==='soft' ? '#597ef7' : '#ddd', color: editForm.site.blink.intensity==='soft' ? '#597ef7' : '#555', fontSize:'12px', padding:'5px 10px' }"
                                                     @click.prevent="applyBlinkPreset('soft')"
                                                     style="border-radius:6px;cursor:pointer;border:1px solid #ddd;background:#f8f9fa;color:#555;font-size:12px;padding:5px 10px">✨ 柔和闪烁</button>
                                             <!-- 普通闪烁：中等参数 -->
                                             <button type="button" class="btn btn-sm"
-                                                    :style="{ background: editForm.site.blink.intensity==='normal' || (!editForm.site.blink.intensity && !editForm.site.blink._custom) ? '#f0fff4' : '#f8f9fa', borderColor: (editForm.site.blink.intensity==='normal' || (!editForm.site.blink.intensity && !editForm.site.blink._custom)) ? '#38a169' : '#ddd', color: (editForm.site.blink.intensity==='normal' || (!editForm.site.blink.intensity && !editForm.site.blink._custom)) ? '#38a169' : '#555', fontSize:'12px', padding:'5px 10px' }"
+                                                    :style="{ background: editForm.site.blink.intensity==='normal' || (!editForm.site.blink.intensity && !editForm.site.blink._custom) ? '#f0f3ff' : '#f8f9fa', borderColor: (editForm.site.blink.intensity==='normal' || (!editForm.site.blink.intensity && !editForm.site.blink._custom)) ? '#597ef7' : '#ddd', color: (editForm.site.blink.intensity==='normal' || (!editForm.site.blink.intensity && !editForm.site.blink._custom)) ? '#597ef7' : '#555', fontSize:'12px', padding:'5px 10px' }"
                                                     @click.prevent="applyBlinkPreset('normal')"
                                                     style="border-radius:6px;cursor:pointer;border:1px solid #ddd;background:#f8f9fa;color:#555;font-size:12px;padding:5px 10px">💡 普通闪烁</button>
                                             <!-- 自定义：用户自己调参 -->
                                             <button type="button" class="btn btn-sm"
-                                                    :style="{ background: editForm.site.blink._custom ? '#faf5ff' : '#f8f9fa', borderColor: editForm.site.blink._custom ? '#805ad5' : '#ddd', color: editForm.site.blink._custom ? '#805ad5' : '#555', fontSize:'12px', padding:'5px 10px' }"
+                                                    :style="{ background: editForm.site.blink._custom ? '#f0f3ff' : '#f8f9fa', borderColor: editForm.site.blink._custom ? '#597ef7' : '#ddd', color: editForm.site.blink._custom ? '#597ef7' : '#555', fontSize:'12px', padding:'5px 10px' }"
                                                     @click.prevent="editForm.site.blink._custom=true;editForm.site.blink.intensity=''"
                                                     style="border-radius:6px;cursor:pointer;border:1px solid #ddd;background:#f8f9fa;color:#555;font-size:12px;padding:5px 10px">⚙️ 自定义</button>
                                         </div>
@@ -917,7 +983,7 @@ const TEMPLATE = `
 
                                     <!-- 模式行 -->
                                     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
-                                        <span style="font-size:12px;color:var(--text-secondary);font-weight:500">模式</span>
+                                        <span style="font-size:13px;font-weight:500">模式</span>
                                         <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;padding:4px 10px;border:1px solid;border-radius:5px;white-space:nowrap"
                                                :style="{ borderColor: editForm.site.blink.mode==='count'?'#597ef7':'#e0e0e0',background:editForm.site.blink.mode==='count'?'#f0f3ff':'transparent',color:editForm.site.blink.mode==='count'?'#597ef7':'#666' }"
                                                @click.prevent="editForm.site.blink.mode='count'">
@@ -1217,7 +1283,7 @@ const TEMPLATE = `
                         <button class="btn btn-sm btn-primary" @click="createVersionFromTemplate" title="使用默认模板新建版本">
                             <i class="fas fa-plus"></i> 新建
                         </button>
-                        <button class="btn btn-sm" @click="importVersionFile" title="从 JSON 文件导入为新版本（兼容版本下载、站点/编辑器导出的 JSON）">
+                        <button class="btn btn-sm" @click="importVersionFile" title="导入 .naveditor 分享包或 JSON（可勾选板块）">
                             <i class="fas fa-file-import"></i> 导入
                         </button>
                         <button class="btn btn-sm" @click="openTemplateSettings" title="管理默认模板">
@@ -1259,8 +1325,8 @@ const TEMPLATE = `
                                     <button class="btn btn-sm" @click.stop="openVersionLocation(v)" title="打开版本所在文件夹" style="padding:6px 12px;font-size:13px;white-space:nowrap;display:flex;align-items:center;justify-content:center;width:84px">
                                         <i class="fas fa-folder-open"></i> 所在位置
                                     </button>
-                                    <button class="btn btn-sm" @click.stop="exportVersion(v)" title="下载版本数据" style="padding:6px 12px;font-size:13px;white-space:nowrap;display:flex;align-items:center;justify-content:center;width:84px">
-                                        <i class="fas fa-download"></i> 下载
+                                    <button class="btn btn-sm" @click.stop="shareVersion(v)" title="导出为 .naveditor 分享包（可勾选板块）" style="padding:6px 12px;font-size:13px;white-space:nowrap;display:flex;align-items:center;justify-content:center;width:84px">
+                                        <i class="fas fa-share-alt"></i> 分享
                                     </button>
                                 </div>
                                 <div style="display:flex;flex-direction:column;gap:6px">
@@ -1293,6 +1359,44 @@ const TEMPLATE = `
             </div>
         </div>
 
+        <!-- 分享 / 导入 板块选择弹窗 -->
+        <div v-if="modal.shareModules" class="modal-overlay">
+            <div class="modal" style="width:600px;max-width:92vw">
+                <div class="modal-header">
+                    <h3><i class="fas fa-share-alt" style="color:var(--primary)"></i> {{ shareDraft.mode === 'share' ? '导出分享包' : '导入' }}</h3>
+                    <button class="btn-icon" @click="modal.shareModules = false"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div v-if="shareDraft.mode === 'import'" style="font-size:12px;color:var(--text-muted);margin-bottom:10px">
+                        将导入为新的历史版本，未勾选的板块保留当前站点内容。
+                    </div>
+                    <div v-else style="font-size:12px;color:var(--text-muted);margin-bottom:10px">
+                        将导出为 .naveditor 分享包（不含账号凭证、发布基线等敏感信息）。
+                    </div>
+                    <div class="form-label">选择要{{ shareDraft.mode === 'share' ? '分享' : '导入' }}的板块：</div>
+                    <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
+                        <label v-for="m in shareModulesList" :key="m.key" style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;padding:8px 10px;border:1px solid var(--border,#ddd);border-radius:8px">
+                            <input type="checkbox" v-model="shareDraft.modules[m.key]" style="margin-top:2px">
+                            <span>
+                                <span style="font-weight:600">{{ m.label }}</span>
+                                <span style="font-size:12px;color:var(--text-muted);margin-left:6px">{{ m.desc }}</span>
+                            </span>
+                        </label>
+                    </div>
+                    <label v-if="shareDraft.mode === 'share'" style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer">
+                        <input type="checkbox" v-model="shareDraft.includeDeploy">
+                        <span style="font-size:13px">包含部署文件快照（自定义页面/素材，导入时原样还原）</span>
+                    </label>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn" @click="modal.shareModules = false">取消</button>
+                    <button class="btn btn-primary" @click="shareDraft.mode === 'share' ? confirmShare() : confirmImport()">
+                        {{ shareDraft.mode === 'share' ? '生成分享包' : '确认导入' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- 版本同步信息弹窗 -->
         <div v-if="modal.versionSync" class="modal-overlay">
             <div class="modal" style="max-width:560px">
@@ -1320,7 +1424,12 @@ const TEMPLATE = `
                                     {{ syncAccountDisplayName(si) }}
                                     <span class="account-badge" :style="si.type === 'github' ? 'background:#24292f;color:#fff' : (si.type === 'vercel' ? 'background:#000;color:#fff' : (si.type === 'netlify' ? 'background:#00ad9f;color:#fff' : (si.type === 'server' ? 'background:#009639;color:#fff' : 'background:#f48120;color:#fff')))">{{ si.type === 'server' ? (si.deployType === 'local' ? '本地' : 'nginx') : si.type }}</span>
                                 </div>
-                                <div class="version-sync-meta">最后同步：{{ si.lastSyncAt ? Utils.formatTime(si.lastSyncAt) : '—' }}</div>
+                                <div class="version-sync-meta">
+                                    最后同步：{{ si.lastSyncAt ? Utils.formatTime(si.lastSyncAt) : '—' }}
+                                    <template v-if="syncVersion.deployBaselines && syncVersion.deployBaselines[si.accountId]">
+                                        · 版本基线文件 {{ Object.keys(syncVersion.deployBaselines[si.accountId].files || {}).length }} 个
+                                    </template>
+                                </div>
                             </div>
                             <span class="version-sync-status" :class="syncAccountState(si) === 'synced' ? 'ok' : 'pending'">
                                 <i :class="syncAccountState(si) === 'synced' ? 'fas fa-check-circle' : 'fas fa-exclamation-circle'"></i>
@@ -1332,6 +1441,15 @@ const TEMPLATE = `
                         <i class="fas fa-cloud-upload-alt" style="font-size:32px;margin-bottom:10px;display:block;opacity:.45"></i>
                         <p>该版本尚未同步发布到任何账号</p>
                         <p style="font-size:12px;margin-top:4px">发布过该版本的账号才会显示在这里。</p>
+                    </div>
+                    <div v-if="versionUploadRecords && versionUploadRecords.length" style="margin-top:14px;border-top:1px solid var(--border);padding-top:10px">
+                        <div style="font-size:12px;font-weight:600;margin-bottom:8px"><i class="fas fa-bolt" style="margin-right:6px;color:var(--primary)"></i>快速发布履历</div>
+                        <div v-for="(r, i) in versionUploadRecords.slice().reverse()" :key="i" style="font-size:12px;color:var(--text-muted);display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px dashed var(--border)">
+                            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                                {{ Utils.formatTime(r.at) }} · {{ r.account ? (r.account.name || r.account.id) : '未知账号' }}{{ (r.account && r.account.target) ? '（' + r.account.target + '）' : '' }}
+                            </span>
+                            <span style="flex-shrink:0">{{ r.files || 0 }} 个文件 · {{ r.ok ? '成功' : '失败' }}</span>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1424,6 +1542,14 @@ const TEMPLATE = `
             <div class="modal modal-lg">
                 <div class="modal-header">
                     <h3><i class="fas fa-layer-group" style="color:var(--primary)"></i> 站点管理（多导航站）</h3>
+                    <div style="display:flex;align-items:center;gap:8px;margin-left:auto;margin-right:12px">
+                        <button class="btn btn-sm btn-primary" @click="exportAllSitesPackage" title="导出全部站点（含版本历史），不含账号凭证与发布基线">
+                            <i class="fas fa-file-export"></i> 导出全部站点
+                        </button>
+                        <button class="btn btn-sm" @click="importAllSitesPackage" title="从 .naveditor 备份包恢复站点">
+                            <i class="fas fa-file-import"></i> 导入恢复包
+                        </button>
+                    </div>
                     <button class="btn-icon" @click="modal.profiles = false"><i class="fas fa-times"></i></button>
                 </div>
                 <div class="modal-body">
@@ -1590,7 +1716,45 @@ const TEMPLATE = `
                         </button>
                     </div>
                     <div class="setting-warning" style="margin-top:16px">
-                        <i class="fas fa-shield-alt"></i> 所有 Token 保存在当前站点目录 password/ 文件夹下，不会外传到其它服务器。
+                        <i class="fas fa-shield-alt"></i> 所有 Token 保存在账号存储文件夹下，不会外传到其它服务器。
+                    </div>
+                    <div v-if="!passwordDirEditing" style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--text-muted)">
+                        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" :title="passwordDirInfo.dir">
+                            <i class="fas fa-folder"></i> 账号存储文件夹：{{ passwordDirInfo.dir || '未设置' }}
+                        </span>
+                        <button class="btn btn-sm" @click="startEditPasswordDir" title="设置账号凭证的存储位置（Token 文件将保存到该目录）">
+                            <i class="fas fa-exchange-alt"></i> 设置
+                        </button>
+                    </div>
+                    <div v-else style="margin-top:10px;display:flex;align-items:center;gap:8px">
+                        <input class="form-input" v-model="passwordDirInput" placeholder="例如 D:\NavEditorData\password"
+                               style="flex:1;min-width:0;font-family:monospace" @keyup.enter="savePasswordDirInput">
+                        <button class="btn btn-sm" @click="browsePasswordDir" title="打开系统文件夹选择框（若弹窗不便可手动输入）">
+                            <i class="fas fa-folder-open"></i> 浏览
+                        </button>
+                        <button class="btn btn-sm btn-primary" @click="savePasswordDirInput">
+                            <i class="fas fa-check"></i> 保存
+                        </button>
+                        <button class="btn btn-sm" @click="cancelEditPasswordDir">取消</button>
+                    </div>
+                    <div v-if="!dataDirEditing" style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--text-muted)">
+                        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" :title="dataDirInfo.dir">
+                            <i class="fas fa-database"></i> 数据目录：{{ dataDirInfo.dir || '未设置' }}
+                        </span>
+                        <button class="btn btn-sm" @click="startEditDataDir" title="设置站点数据的存储位置（web/、password/ 将保存在该目录）">
+                            <i class="fas fa-exchange-alt"></i> 设置
+                        </button>
+                    </div>
+                    <div v-else style="margin-top:10px;display:flex;align-items:center;gap:8px">
+                        <input class="form-input" v-model="dataDirInput" placeholder="例如 D:\NavEditorData"
+                               style="flex:1;min-width:0;font-family:monospace" @keyup.enter="saveDataDirInput">
+                        <button class="btn btn-sm" @click="browseDataDir" title="打开系统文件夹选择框（若弹窗不便可手动输入）">
+                            <i class="fas fa-folder-open"></i> 浏览
+                        </button>
+                        <button class="btn btn-sm btn-primary" @click="saveDataDirInput">
+                            <i class="fas fa-check"></i> 保存
+                        </button>
+                        <button class="btn btn-sm" @click="cancelEditDataDir">取消</button>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1763,7 +1927,7 @@ const TEMPLATE = `
                                 <div class="form-group">
                                     <label class="form-label"><span style="color:var(--danger)">*</span> 登录密码</label>
                                     <input class="form-input" type="password" v-model="editForm.account.password" placeholder="服务器 SSH 登录密码">
-                                    <div class="setting-hint">仅保存在本机 password/ 文件夹中，部署时通过本机后端直连服务器，不会上传到第三方。</div>
+                                    <div class="setting-hint">仅保存在本机账号存储文件夹中，部署时通过本机后端直连服务器，不会上传到第三方。</div>
                                 </div>
                             </template>
                             <template v-else>

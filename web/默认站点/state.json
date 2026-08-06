@@ -1,0 +1,26 @@
+{
+  "deploySettings": {
+    "incrementalFiles": {
+      "index": true,
+      "about": true,
+      "commit": true,
+      "customCss": true,
+      "notFound": true,
+      "assets": true
+    },
+    "fullFiles": {
+      "index": true,
+      "about": true,
+      "commit": true,
+      "customCss": true,
+      "notFound": true,
+      "assets": true
+    },
+    "includePaths": [],
+    "defaultTop": "quick"
+  },
+  "currentVersionId": "初始版本",
+  "versionOrder": [
+    "默认模板"
+  ]
+}

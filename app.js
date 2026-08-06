@@ -221,9 +221,9 @@ const Parser = {
             title: titleEl?.textContent?.trim() || '网址导航',
             description: descEl?.getAttribute('content') || '',
             keywords: kwEl?.getAttribute('content') || '',
-            favicon: normAsset(favEl?.getAttribute('href')) || '/assets/images/favicon.png',
-            logoLight: normAsset(logoLight?.getAttribute('src')) || '/assets/images/bt8-expand-light.png',
-            logoDark: normAsset(logoDark?.getAttribute('src')) || '/assets/images/bt8-expand-dark.png',
+            favicon: normAsset(favEl?.getAttribute('href')) || '',
+            logoLight: normAsset(logoLight?.getAttribute('src')) || '',
+            logoDark: normAsset(logoDark?.getAttribute('src')) || '',
             logoCollapsedLight: normAsset(logoCollapsedLight?.getAttribute('src')) || '',
             logoCollapsedDark: normAsset(logoCollapsedDark?.getAttribute('src')) || '',
             // 侧边栏标题：取生成页首个 .logo-text（展开态标题）；缺省回退 title
@@ -444,50 +444,70 @@ const Parser = {
     /**
      * 解析底部备案/版权信息（.footer-text）
      * 原 HTML 格式示例：
-     *   "本站内容源自互联网…联系邮箱：kefu308@gmail.com <br/>© 2021 - 2023 By <a href="...">Web_tool</a> | <a href="...">京ICP备2023018588号</a><br/>"
+     *   "本站内容来自于网络，不对网站内容负责 <br/>@2025 By <a href="...">NavEditor</a> | <a href="...">粤ICP备xxxx号</a> | <a href="..."><img src="assets/images/gongan.png"/>粤公网安备xxxx号</a>"
      */
     parseFooter(doc) {
         const def = {
-            note: '本站内容源自互联网，如有内容侵犯了你的权益，请联系删除相关内容，联系邮箱：kefu308@gmail.com',
-            copyright: '© 2021 - 2023 By',
-            copyrightName: 'Web_tool',
-            copyrightUrl: 'https://github.com/geeeeeeeek/web_tool',
-            beian: '京ICP备2023018588号',
-            beianUrl: 'http://beian.miit.gov.cn/'
+            domain: '',
+            note: '',
+            copyright: '',
+            copyrightName: '',
+            copyrightUrl: '',
+            beian: '',
+            beianUrl: '',
+            gongan: '',
+            gonganUrl: ''
         };
         const ft = doc.querySelector('.footer-text');
         if (!ft) return def;
 
-        // 提取两行（br 分隔）：第一行是 note，第二行是 © + 备案
+        // 提取行（br 分隔）：第一行 note，第二行版权，第三行 ICP/公安备案（兼容旧的两行格式）
         const html = ft.innerHTML;
         const parts = html.split(/<br\s*\/?>/i);
         const result = { ...def };
+        const linkRe = /<a\s+([^>]*?href=["']([^"']+)["'][^>]*>)([\s\S]*?)<\/a>/gi;
+        const parseLinks = (seg) => {
+            linkRe.lastIndex = 0;
+            const out = [];
+            let m;
+            while ((m = linkRe.exec(seg || '')) !== null) {
+                out.push({ full: m[0], href: m[2], inner: m[3] });
+            }
+            return out;
+        };
 
         if (parts[0]) {
             // 第一行：纯文本（可能包含邮箱）
             const noteText = parts[0].replace(/<[^>]+>/g, '').trim();
             if (noteText) result.note = noteText;
         }
-        if (parts[1]) {
-            // 第二行：包含 © + 链接
-            // 匹配 "© 2021 - 2023 By <a href="...">Web_tool</a> | <a href="...">京ICP备2023018588号</a>"
-            const links = parts[1].match(/<a\s+href=["']([^"']+)["'][^>]*>([^<]+)<\/a>/gi) || [];
-            if (links.length >= 1) {
-                const m1 = links[0].match(/href=["']([^"']+)["'][^>]*>([^<]+)/i);
-                if (m1) {
-                    result.copyrightUrl = m1[1];
-                    result.copyrightName = m1[2];
-                }
-                // © 前缀
-                const beforeCopy = parts[1].split(links[0])[0].trim();
-                if (beforeCopy) result.copyright = beforeCopy;
-            }
-            if (links.length >= 2) {
-                const m2 = links[1].match(/href=["']([^"']+)["'][^>]*>([^<]+)/i);
-                if (m2) {
-                    result.beianUrl = m2[1];
-                    result.beian = m2[2];
-                }
+        let copyLinks = [];
+        let beianLinks = [];
+        const line1Links = parseLinks(parts[1]);
+        if (parts[2]) {
+            // 版权单独一行，ICP/公安在下一行（兼容上一版三行格式）
+            copyLinks = line1Links;
+            beianLinks = parseLinks(parts[2]);
+        } else {
+            // 版权 + ICP/公安 在同一行
+            copyLinks = line1Links.slice(0, 1);
+            beianLinks = line1Links.slice(1);
+        }
+        if (copyLinks.length >= 1) {
+            result.copyrightUrl = copyLinks[0].href;
+            result.copyrightName = copyLinks[0].inner.replace(/<[^>]+>/g, '').trim();
+            const beforeCopy = parts[1].split(copyLinks[0].full)[0].trim();
+            if (beforeCopy) result.copyright = beforeCopy;
+        }
+        for (const ln of beianLinks) {
+            const text = ln.inner.replace(/<[^>]+>/g, '').trim();
+            if (!text) continue;
+            if (/<img/i.test(ln.inner)) {
+                result.gonganUrl = ln.href;
+                result.gongan = text;
+            } else {
+                result.beianUrl = ln.href;
+                result.beian = text;
             }
         }
         return result;
@@ -737,7 +757,7 @@ const Generator = {
         const leftAdsHtml = (a.leftAds || []).map(renderAd).join('\n');
         const rightAdsHtml = (a.rightAds || []).map(renderAd).join('\n');
         const pageTitle = this.escape((a.title || '关于作者') + (site && site.title ? ' - ' + site.title : ''));
-        const favicon = this.escapeAttr((a && a.favicon) || '/assets/images/favicon.png');
+        const favicon = this.escapeAttr((a && a.favicon) || '');
         const contentHtml = `
             <style>
                 body{margin:0;background:#f5f7fa;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans","Liberation Sans",sans-serif}
@@ -983,7 +1003,7 @@ const Generator = {
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#f9f9f9" />
     <title>${title} - 在线工具网</title>
-    <link rel="shortcut icon" href="${this.escapeAttr(commit.favicon || '/assets/images/favicon.png')}" />
+    <link rel="shortcut icon" href="${this.escapeAttr(commit.favicon || '')}" />
     <meta name="keywords" content="网址提交,网站收录,在线工具网" />
     <meta name="description" content="提交您的优质网站，加入在线工具网址导航" />
     <link rel="stylesheet" href="./assets/css/block-library.min-5.6.2.css" type="text/css" media="all" />
@@ -1771,12 +1791,15 @@ body.modal-open{overflow:auto!important;padding-right:0!important}
      */
     defaultFooter() {
         return {
-            note: '本站内容源自互联网，如有内容侵犯了你的权益，请联系删除相关内容，联系邮箱：kefu308@gmail.com',
-            copyright: '© 2021 - 2023 By',
-            copyrightName: 'Web_tool',
-            copyrightUrl: 'https://github.com/geeeeeeeek/web_tool',
-            beian: '京ICP备2023018588号',
-            beianUrl: 'http://beian.miit.gov.cn/'
+            domain: '',
+            note: '本站内容来自于网络，不对网站内容负责',
+            copyright: '@2025 By',
+            copyrightName: 'NavEditor',
+            copyrightUrl: 'https://github.com/yiming2016/NavEditor',
+            beian: '粤ICP备xxxx号',
+            beianUrl: 'https://beian.miit.gov.cn/#/Integrated/recordQuery',
+            gongan: '粤公网安备xxxx号',
+            gonganUrl: 'https://beian.mps.gov.cn/#/query/webSearch'
         };
     },
 
@@ -1794,19 +1817,39 @@ body.modal-open{overflow:auto!important;padding-right:0!important}
         if (f.copyrightName && f.copyrightName.trim()) {
             const txt = (f.copyright ? this.escape(f.copyright) + ' ' : '') +
                 (f.copyrightUrl && f.copyrightUrl.trim()
-                    ? `<a href="${this.escapeAttr(this.normalizeLink(f.copyrightUrl))}">${this.escape(f.copyrightName)}</a>`
+                    ? `<a href="${this.escapeAttr(this.normalizeLink(f.copyrightUrl))}" target="_blank" rel="noopener">${this.escape(f.copyrightName)}</a>`
                     : this.escape(f.copyrightName));
             linkParts.push(txt);
         }
         if (f.beian && f.beian.trim()) {
-            const beianInner = f.beianUrl && f.beianUrl.trim()
-                ? `<a href="${this.escapeAttr(this.normalizeLink(f.beianUrl))}">${this.escape(f.beian)}</a>`
-                : this.escape(f.beian);
-            linkParts.push(beianInner);
+            const url = this._beianQueryUrl(f.beianUrl, 'domain', f.domain);
+            linkParts.push(url
+                ? `<a href="${this.escapeAttr(this.normalizeLink(url))}" target="_blank" rel="noopener">${this.escape(f.beian)}</a>`
+                : this.escape(f.beian));
         }
-        const inner = parts.join(' ');
-        const linkLine = linkParts.length ? '<br/>' + linkParts.join(' | ') : '';
-        return `${inner}${linkLine}`;
+        if (f.gongan && f.gongan.trim()) {
+            const digits = String(f.gongan).replace(/\D/g, '');
+            const url = this._beianQueryUrl(f.gonganUrl, 'code', digits);
+            const inner = `<img class="beian-gongan-logo" src="${this.GONGAN_LOGO}" alt="公安备案" style="display:inline-block;vertical-align:middle;width:12px;height:auto;margin-right:3px"/>${this.escape(f.gongan)}`;
+            linkParts.push(url
+                ? `<a href="${this.escapeAttr(this.normalizeLink(url))}" target="_blank" rel="noopener">${inner}</a>`
+                : inner);
+        }
+        if (linkParts.length) parts.push(linkParts.join(' | '));
+        return parts.join('<br/>');
+    },
+
+    // 公安联网备案官方图标（本地化，随 assets 一并部署）
+    GONGAN_LOGO: 'assets/images/gongan.png',
+
+    // 在备案查询链接上追加查询参数（自动替换同名参数），用于直达当前网站备案查询
+    _beianQueryUrl(base, name, value) {
+        const u = (base || '').trim();
+        const v = (value == null ? '' : String(value)).trim();
+        if (!u || !v) return u;
+        const clean = u.replace(new RegExp('[?&]' + name + '=[^&]*', 'i'), '');
+        const sep = clean.indexOf('?') >= 0 ? '&' : '?';
+        return clean + sep + name + '=' + encodeURIComponent(v);
     },
 
     // === 广告位：构建单侧轨道 HTML（hero 区域内 2×2 网格布局）===
@@ -1982,7 +2025,7 @@ body.modal-open{overflow:auto!important;padding-right:0!important}
         content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#f9f9f9" />
     <title>${this.escape(site.title)}</title>
-    <link rel="shortcut icon" href="${this.escapeAttr(site.favicon || '/assets/images/favicon.png')}" />
+    <link rel="shortcut icon" href="${this.escapeAttr(site.favicon || '')}" />
     <meta name="keywords" content="${this.escapeAttr(site.keywords)}" />
     <meta name="description" content="${this.escapeAttr(site.description)}" />
 
@@ -2033,12 +2076,12 @@ ${adCss}
 
                     <div class="logo overflow-hidden">
                         <a href="javascript:void(0)" onclick="window.scrollTo(0,0);return false" class="logo-expanded">
-                            <img src="${this.escapeAttr(site.logoLight)}" height="40" class="logo-light"
+                            <img src="${this.escapeAttr(site.logoLight)}" height="40" class="logo-light"${site.logoLight ? '' : ' style="display:none"'}
                                 alt="${this.escapeAttr(sidebarTitle)}">
                             <span class="logo-text"${titleStyle}>${this.escape(sidebarTitle)}</span>
                         </a>
                         <a href="javascript:void(0)" onclick="window.scrollTo(0,0);return false" class="logo-collapsed">
-                            <img src="${this.escapeAttr(logoCollapsedLight)}" height="40" class="logo-light"
+                            <img src="${this.escapeAttr(logoCollapsedLight)}" height="40" class="logo-light"${logoCollapsedLight ? '' : ' style="display:none"'}
                                 alt="${this.escapeAttr(sidebarTitle)}">
                         </a>
                     </div>
@@ -2150,7 +2193,7 @@ ${(function() {
                 <div class="container-fluid p-0">
 
                     <a href="javascript:void(0)" onclick="window.scrollTo(0,0);return false" class="navbar-brand d-md-none" title="${this.escapeAttr(sidebarTitle)}">
-                        <img src="${this.escapeAttr(logoCollapsedLight)}" class="logo-light"
+                        <img src="${this.escapeAttr(logoCollapsedLight)}" class="logo-light"${logoCollapsedLight ? '' : ' style="display:none"'}
                             alt="${this.escapeAttr(sidebarTitle)}">
                         <span class="logo-text"${titleStyle}>${this.escape(sidebarTitle)}</span>
                     </a>
@@ -2553,6 +2596,17 @@ var theme = {"ajaxurl":"","addico":"https:\/\/nav.baidu.cn\/wp-content\/themes\/
 };
 
 // ==================== 存储管理（文件夹式） ====================
+// 版本/模板快照瘦身：剔除纯运行时状态（发布基线、当前版本、排序等，
+// 这些只保存在站点 setting，不进入历史版本/模板快照）
+function stripVersionRuntime(d) {
+    const c = JSON.parse(JSON.stringify(d || {}));
+    delete c.deployBaseline;
+    delete c.deploySettings;
+    delete c.currentVersionId;
+    delete c.versionOrder;
+    return c;
+}
+
 const Storage = {
     CURRENT_PROFILE_KEY: 'nav_editor_current_profile',
 
@@ -2633,7 +2687,7 @@ const Storage = {
             note: finalNote,
             timestamp: Date.now(),
             starred: false,
-            data: JSON.parse(JSON.stringify(data))
+            data: stripVersionRuntime(data)
         };
         await this._api('POST', 'version-setting', { site: siteId, version: versionId, setting });
         return { ...setting };
@@ -2651,6 +2705,32 @@ const Storage = {
         if (!siteId || !id) return null;
         const res = await this._api('GET', 'version-setting?site=' + encodeURIComponent(siteId) + '&version=' + encodeURIComponent(id));
         return res.setting || null;
+    },
+
+    async getVersionForSite(siteId, id) {
+        if (!siteId || !id) return null;
+        try {
+            const res = await this._api('GET', 'version-setting?site=' + encodeURIComponent(siteId) + '&version=' + encodeURIComponent(id));
+            return res.setting || null;
+        } catch (_e) {
+            return null;
+        }
+    },
+
+    async createVersionForSite(siteId, data, note = '', extra = {}) {
+        const finalNote = note || Utils.formatTime(Date.now());
+        const res = await this._api('POST', 'version', { action: 'create', site: siteId, name: finalNote });
+        const versionId = res.id;
+        const setting = {
+            id: versionId,
+            name: finalNote,
+            note: finalNote,
+            timestamp: (extra && extra.timestamp) || Date.now(),
+            starred: !!(extra && extra.starred),
+            data: stripVersionRuntime(data)
+        };
+        await this._api('POST', 'version-setting', { site: siteId, version: versionId, setting });
+        return versionId;
     },
 
     async deleteVersion(id) {
@@ -2684,7 +2764,7 @@ const Storage = {
         if (!siteId || !id) return;
         const res = await this._api('GET', 'version-setting?site=' + encodeURIComponent(siteId) + '&version=' + encodeURIComponent(id));
         const setting = res.setting || {};
-        setting.data = JSON.parse(JSON.stringify(data));
+        setting.data = stripVersionRuntime(data);
         await this._api('POST', 'version-setting', { site: siteId, version: id, setting });
     },
 
@@ -2704,6 +2784,15 @@ const Storage = {
     // ---------- 部署文件 ----------
     async writeVersionDeploy(siteId, versionId, group, files) {
         await this._api('POST', 'version-deploy', { site: siteId, version: versionId, group, files });
+    },
+
+    // ---------- 快速发布履历（web/<site>/<version>/upload/log.json）----------
+    async writeVersionUploadRecord(siteId, versionId, record) {
+        await this._api('POST', 'version-upload-record', { site: siteId, version: versionId, record });
+    },
+    async getVersionUploadRecords(siteId, versionId) {
+        const res = await this._api('GET', 'version-upload-records?site=' + encodeURIComponent(siteId) + '&version=' + encodeURIComponent(versionId));
+        return res.records || [];
     },
 
     // ---------- 默认模板 ----------
@@ -3469,26 +3558,53 @@ const GitHubSync = {
             content: binary ? content : btoa(Array.from(new TextEncoder().encode(content), b => String.fromCharCode(b)).join('')),
             branch: branch
         };
-        if (sha) body.sha = sha;
         const encPath = path.split('/').map(encodeURIComponent).join('/');
-        const res = await proxyFetch('api.github.com', `/repos/${owner}/${repo}/contents/${encPath}`, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-                'Accept': 'application/vnd.github+json',
-                'X-GitHub-Api-Version': '2022-11-28'
-            },
-            body: JSON.stringify(body)
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(`上传 ${path} 失败: ${data.message || 'HTTP ' + res.status}`);
-        return data;
+        const doPut = async (curSha) => {
+            const b = Object.assign({}, body);
+            if (curSha) b.sha = curSha;
+            const res = await proxyFetch('api.github.com', `/repos/${owner}/${repo}/contents/${encPath}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/vnd.github+json',
+                    'X-GitHub-Api-Version': '2022-11-28'
+                },
+                body: JSON.stringify(b)
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                const err = new Error(`上传 ${path} 失败: ${data.message || 'HTTP ' + res.status}`);
+                err.status = res.status;
+                err.githubMessage = data.message || '';
+                throw err;
+            }
+            return data;
+        };
+        try {
+            return await doPut(sha);
+        } catch (e) {
+            // GitHub Contents API 并发/陈旧 sha 冲突（"is at ... but expected ..."）：
+            // 重新读取当前 sha 后重试，最多 3 次
+            if (e.status === 422 && /is at .* but expected/i.test(e.githubMessage)) {
+                for (let attempt = 0; attempt < 3; attempt++) {
+                    const curSha = await this.getFileSha(owner, repo, path, branch, token);
+                    if (!curSha) break;
+                    try {
+                        return await doPut(curSha);
+                    } catch (e2) {
+                        if (!(e2.status === 422 && /is at .* but expected/i.test(e2.githubMessage))) throw e2;
+                    }
+                }
+            }
+            throw e;
+        }
     },
 
     async deployFiles(files, account, onProgress, opts = {}) {
         const { owner, repo, branch, token } = account;
         const onlyFiles = opts.onlyFiles || files;
+        const forceFull = !!opts.forceFull;
         const onDetail = opts.onDetail;
         const steps = [
             { name: '检查仓库', detail: '正在验证 GitHub 仓库...' },
@@ -3502,62 +3618,150 @@ const GitHubSync = {
         onProgress(0, { ...steps[0], done: true });
 
         onProgress(1, steps[1]);
-        // 并发查询现有文件 sha（并发 8），避免首次全量发布时 500+ 个串行请求卡死
-        const shas = {};
-        const shaList = await mapWithConcurrency(onlyFiles, 8, async (f) => {
-            return await this.getFileSha(owner, repo, f.path, branch, token);
-        });
-        for (let i = 0; i < onlyFiles.length; i++) shas[onlyFiles[i].path] = shaList[i];
-        onProgress(1, { ...steps[1], done: true });
-
-        // 清理此前发布过、本次已从部署集移除的历史残留文件
-        // （根 commit.html、password/*、web/* 等旧版误发布内容），避免继续暴露在 Pages / 仓库中
+        // ===== 改为「单次提交」方式（Git Data API）=====
+        // 一次性创建所有 blob → 构建新 tree（含新增/更新/删除）→ 创建 commit → 更新分支引用。
+        // 避免 Contents API 逐文件提交时的 "is at ... but expected ..." 并发 sha 冲突。
         const deleteFiles = opts.deleteFiles || [];
-        if (deleteFiles.length) {
-            const delShas = await mapWithConcurrency(deleteFiles, 8, async (p) => {
-                return { path: p, sha: await this.getFileSha(owner, repo, p, branch, token) };
+        const AUTH_HEADERS = {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28'
+        };
+        const jsonHeaders = Object.assign({ 'Content-Type': 'application/json' }, AUTH_HEADERS);
+        const getRefSha = async () => {
+            const res = await withTimeout(proxyFetch('api.github.com', `/repos/${owner}/${repo}/git/ref/heads/${encodeURIComponent(branch)}`, { headers: AUTH_HEADERS }), 15000, null);
+            if (res && res.ok) { const d = await res.json(); return d.object && d.object.sha; }
+            return null;
+        };
+        const getCommitTreeSha = async (commitSha) => {
+            const res = await withTimeout(proxyFetch('api.github.com', `/repos/${owner}/${repo}/git/commits/${commitSha}`, { headers: AUTH_HEADERS }), 15000, null);
+            if (res && res.ok) { const d = await res.json(); return d.tree && d.tree.sha; }
+            return null;
+        };
+        const getTreeEntries = async (treeSha) => {
+            const res = await withTimeout(proxyFetch('api.github.com', `/repos/${owner}/${repo}/git/trees/${treeSha}?recursive=1`, { headers: AUTH_HEADERS }), 30000, null);
+            if (res && res.ok) { const d = await res.json(); return d.tree || []; }
+            return [];
+        };
+        const postJson = async (path, body) => {
+            const res = await proxyFetch('api.github.com', path, { method: 'POST', headers: jsonHeaders, body: JSON.stringify(body) });
+            const d = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error((d && d.message) || ('HTTP ' + res.status));
+            return d;
+        };
+        const createBlob = async (base64Content) => {
+            const d = await postJson(`/repos/${owner}/${repo}/git/blobs`, { content: base64Content, encoding: 'base64' });
+            return d.sha;
+        };
+        const createTree = async (entries) => {
+            const d = await postJson(`/repos/${owner}/${repo}/git/trees`, { tree: entries });
+            return d.sha;
+        };
+        const createCommit = async (message, treeSha, parentSha) => {
+            const d = await postJson(`/repos/${owner}/${repo}/git/commits`, {
+                message, tree: treeSha, parents: parentSha ? [parentSha] : []
             });
-            const toDel = delShas.filter(d => d.sha);
-            for (let i = 0; i < toDel.length; i++) {
-                const d = toDel[i];
-                const enc = d.path.split('/').map(encodeURIComponent).join('/');
-                const delRes = await proxyFetch('api.github.com', `/repos/${owner}/${repo}/contents/${enc}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/vnd.github+json',
-                        'X-GitHub-Api-Version': '2022-11-28'
-                    },
-                    body: JSON.stringify({ message: `Remove ${d.path}`, branch, sha: d.sha })
+            return d.sha;
+        };
+        const updateRef = async (commitSha) => {
+            const refPath = `/repos/${owner}/${repo}/git/refs/heads/${encodeURIComponent(branch)}`;
+            const res = await proxyFetch('api.github.com', refPath, {
+                method: 'PATCH', headers: jsonHeaders, body: JSON.stringify({ sha: commitSha, force: false })
+            });
+            if (res.ok) return;
+            const d = await res.json().catch(() => ({}));
+            // 分支不存在时尝试创建
+            if (res.status === 422 || res.status === 404) {
+                const cRes = await proxyFetch('api.github.com', `/repos/${owner}/${repo}/git/refs`, {
+                    method: 'POST', headers: jsonHeaders, body: JSON.stringify({ ref: 'refs/heads/' + branch, sha: commitSha })
                 });
-                // 404=远端文件已不存在，视为清理完成；其余错误直接报错（避免敏感旧文件静默残留）
-                if (!delRes.ok && delRes.status !== 404) {
-                    const errData = await delRes.json().catch(() => ({}));
-                    throw new Error(`清理 ${d.path} 失败: ${(errData && errData.message) || 'HTTP ' + delRes.status}`);
-                }
-                if (onProgress) onProgress(2, { ...steps[2], detail: `清理 ${d.path} (${i + 1}/${toDel.length})...` });
+                if (cRes.ok) return;
+                const cd = await cRes.json().catch(() => ({}));
+                throw new Error('更新分支失败: ' + ((cd && cd.message) || 'HTTP ' + cRes.status));
             }
-        }
+            throw new Error('更新分支失败: ' + ((d && d.message) || 'HTTP ' + res.status));
+        };
+        const encContent = (f) => f.binary ? f.content : btoa(Array.from(new TextEncoder().encode(f.content), b => String.fromCharCode(b)).join(''));
 
-        onProgress(2, steps[2]);
         if (onDetail) {
             onDetail({ type: 'init', total: onlyFiles.length, totalBytes: onlyFiles.reduce((s, f) => s + (f.bytes || 0), 0), items: onlyFiles.map(f => ({ path: f.path, status: 'pending' })) });
         }
-        // 并发上传（并发 5）：GitHub 写入存在二级限流，过大并发易触发 abuse 限制
-        let uploadedCount = 0;
-        await mapWithConcurrency(onlyFiles, 5, async (f, i) => {
-            if (onDetail) onDetail({ type: 'item-start', index: i, path: f.path });
-            try {
-                await this.uploadFile(owner, repo, f.path, branch, token, f.content, `Update ${f.path}`, shas[f.path], f.binary);
-                if (onDetail) onDetail({ type: 'item-done', index: i, bytes: f.bytes || 0 });
-            } catch (e) {
-                if (onDetail) onDetail({ type: 'item-error', index: i });
-                throw e; // 单个失败即整体失败（与原串行语义一致）
+
+        const pathSet = new Set(onlyFiles.map(f => f.path));
+        const delSet = new Set(deleteFiles);
+        let committed = onlyFiles.length === 0 && deleteFiles.length === 0;
+        let lastErr = null;
+        if (!committed) {
+            for (let attempt = 0; attempt < 3 && !committed; attempt++) {
+            // 每次重试重新读取分支 head（避免分支被并发移动导致的陈旧提交）
+            const headSha = await getRefSha();
+            let baseEntries = [];
+            if (headSha) {
+                const tsha = await getCommitTreeSha(headSha);
+                if (tsha) baseEntries = await getTreeEntries(tsha);
             }
-            uploadedCount++;
-            onProgress(2, { ...steps[2], detail: `上传 ${f.path} (${uploadedCount}/${onlyFiles.length})...` });
-        });
+            onProgress(1, { ...steps[1], done: true, detail: baseEntries.length ? `读取现有文件 ${baseEntries.length} 个` : '空分支/新仓库' });
+
+            onProgress(2, steps[2]);
+            // 1) 创建文件 blob（并发 4 + 失败自动重试，避免触发 GitHub 二级限流/瞬断）
+            const blobShas = [];
+            let blobCount = 0;
+            await mapWithConcurrency(onlyFiles, 4, async (f, i) => {
+                if (onDetail) onDetail({ type: 'item-start', index: i, path: f.path });
+                try {
+                    let sha = null;
+                    for (let attempt = 0; attempt < 3; attempt++) {
+                        try {
+                            sha = await createBlob(encContent(f));
+                            break;
+                        } catch (e2) {
+                            if (attempt < 2) {
+                                await new Promise(r => setTimeout(r, 1200 * (attempt + 1)));
+                                continue;
+                            }
+                            throw e2;
+                        }
+                    }
+                    blobShas[i] = sha;
+                    blobCount++;
+                    onProgress(2, { ...steps[2], detail: `创建文件对象 ${blobCount}/${onlyFiles.length}...` });
+                    if (onDetail) onDetail({ type: 'item-done', index: i, bytes: f.bytes || 0 });
+                } catch (e) {
+                    if (onDetail) onDetail({ type: 'item-error', index: i });
+                    throw e;
+                }
+            });
+
+            // 2) 构建新 tree
+            const entries = [];
+            if (!forceFull) {
+                // 增量发布：保留未被替换/删除的现有文件 + 新增/更新条目
+                for (const e of baseEntries) {
+                    if (!e || e.type === 'tree') continue;
+                    if (pathSet.has(e.path) || delSet.has(e.path)) continue;
+                    entries.push({ path: e.path, mode: e.mode || '100644', type: e.type || 'blob', sha: e.sha });
+                }
+            } else {
+                // 全量发布：仓库只保留当前部署文件，其余旧文件全部移除
+                onProgress(2, { ...steps[2], detail: `全量替换：仅保留 ${onlyFiles.length} 个部署文件` });
+            }
+            for (let i = 0; i < onlyFiles.length; i++) {
+                entries.push({ path: onlyFiles[i].path, mode: '100644', type: 'blob', sha: blobShas[i] });
+            }
+            const newTreeSha = await createTree(entries);
+            // 3) 创建 commit 并更新分支引用（一次性原子提交）
+            const newCommitSha = await createCommit(`Deploy via NavEditor (${onlyFiles.length} 个文件)`, newTreeSha, headSha);
+            try {
+                await updateRef(newCommitSha);
+                committed = true;
+            } catch (e) {
+                lastErr = e;
+                // 分支被并发移动 → 重新读取 head 重试
+                console.warn('GitHub 分支更新失败，重试中:', e.message);
+            }
+            }
+        }
+        if (!committed) throw lastErr || new Error('GitHub 提交失败');
         onProgress(2, { ...steps[2], done: true });
 
         onProgress(3, steps[3]);
@@ -3771,11 +3975,7 @@ const App = {
                 philosophy: '在工作中，我注重团队协作，能够与团队成员保持良好的沟通和合作。同时，我还注重代码的可读性和可维护性，能够编写高质量的代码。我对于新技术的学习充满热情，并且能够将所学技术应用到实际工作中。\n\n除了工作和学习，我还积极参加各种技术社区和活动，通过与他人的交流和学习，不断提升自己的技术水平和解决问题的能力。',
                 philosophyHtml: '',
                 philosophyMode: 'text',
-                contacts: [
-                    { icon: 'fab fa-github', label: 'GitHub:', value: 'https://github.com/geeeeeeeek', link: 'https://github.com/geeeeeeeek' },
-                    { icon: 'fas fa-globe', label: '个人主页:', value: 'https://web.gitapp.cn', link: 'https://web.gitapp.cn' },
-                    { icon: 'fas fa-envelope', label: '邮箱:', value: 'kefu308@gmail.com', link: 'mailto:kefu308@gmail.com' }
-                ],
+                contacts: [],
                 leftAds: [],
                 rightAds: [],
                 template: '页脚/关于导航'
@@ -3795,12 +3995,15 @@ const App = {
             },
             // 底部备案/版权信息
             footer: {
-                note: '本站内容源自互联网，如有内容侵犯了你的权益，请联系删除相关内容，联系邮箱：kefu308@gmail.com',
-                copyright: '© 2021 - 2023 By',
-                copyrightName: 'Web_tool',
-                copyrightUrl: 'https://github.com/geeeeeeeek/web_tool',
-                beian: '京ICP备2023018588号',
-                beianUrl: 'http://beian.miit.gov.cn/'
+                domain: '',
+                note: '本站内容来自于网络，不对网站内容负责',
+                copyright: '@2025 By',
+                copyrightName: 'NavEditor',
+                copyrightUrl: 'https://github.com/yiming2016/NavEditor',
+                beian: '粤ICP备xxxx号',
+                beianUrl: 'https://beian.miit.gov.cn/#/Integrated/recordQuery',
+                gongan: '粤公网安备xxxx号',
+                gonganUrl: 'https://beian.mps.gov.cn/#/query/webSearch'
             },
             menuKeys: [
                 { id: 'mk-submit', icon: 'fas fa-file-upload', text: '网站提交', url: 'commit.html', target: '_blank' },
@@ -4013,21 +4216,93 @@ const App = {
             data.deploySettings.incrementalFiles = { index: true, about: true, commit: true, customCss: true, notFound: true, assets: true };
             data.deploySettings.fullFiles = { index: true, about: true, commit: true, customCss: true, notFound: true, assets: true };
             data.deploySettings.includePaths = [];
-            data.deploySettings.defaultTop = 'incremental';
+            data.deploySettings.defaultTop = 'quick';
         };
 
         // 主按钮显示的文字与默认动作（由 deploySettings.defaultTop 决定）
         const publishMainLabel = computed(() => {
-            const t = (data.deploySettings && data.deploySettings.defaultTop) || 'incremental';
+            const t = (data.deploySettings && data.deploySettings.defaultTop) || 'quick';
             if (t === 'full') return '全量发布';
+            if (t === 'quick') return '快速发布';
             if (t === 'settings') return '发布设置';
             return '增量发布';
         });
         const onPublishMainClick = () => {
-            const t = (data.deploySettings && data.deploySettings.defaultTop) || 'incremental';
+            const t = (data.deploySettings && data.deploySettings.defaultTop) || 'quick';
             publishMenuOpen.value = false;
             if (t === 'settings') { openPublishSettings(); return; }
+            if (t === 'quick') { quickPublish(); return; }
             syncToCloudflare(t === 'full');
+        };
+
+        // === 发布确认（增量/全量）+ 未保存先保存 ===
+        const publishConfirmApproved = ref(false);
+        const publishPending = ref(null);   // { forceFull, sourceData, sourceLabel, sourceVersionId }
+        const publishSaveDone = ref(false);
+        const publishConfirmText = computed(() => {
+            const acc = cfAccounts.value.find(a => a.id === activeAccountId.value);
+            const isFull = !!(publishPending.value && publishPending.value.forceFull);
+            if (!acc) {
+                return {
+                    title: isFull ? '全量发布确认' : '增量发布确认',
+                    line1: isFull ? '执行全量发布？' : '执行增量发布？',
+                    line2: isFull ? '这会清理目标位置所有内容' : '只上传有变更的文件（增量发布）'
+                };
+            }
+            let target = '';
+            if (acc.type === 'github') target = '用户 ' + (acc.owner || '?') + ' 下的仓库 ' + (acc.repo || '?');
+            else if (acc.type === 'cloudflare') target = '账户 ' + (acc.accountId || '?') + ' 的项目 ' + (acc.projectName || '?');
+            else if (acc.type === 'vercel') target = (acc.teamId ? '团队 ' + acc.teamId + ' 的' : '') + '项目 ' + (acc.projectName || '?');
+            else if (acc.type === 'netlify') target = '站点 ' + (acc.siteName || acc.siteId || '?');
+            else if (acc.type === 'server' && acc.deployType === 'local') target = '本地目录 ' + (acc.localPath || '?');
+            else if (acc.type === 'server') target = '服务器 ' + (acc.host || '?') + ':' + (acc.remotePath || '?');
+            else target = acc.name || '目标位置';
+            const platform = acc.type === 'github' ? 'Github' : acc.type === 'cloudflare' ? 'Cloudflare' : acc.type === 'vercel' ? 'Vercel' : acc.type === 'netlify' ? 'Netlify' : acc.type === 'server' ? '服务器' : '';
+            let cleanTarget = '内容';
+            if (acc.type === 'github') cleanTarget = '仓库';
+            else if (acc.type === 'cloudflare' || acc.type === 'vercel') cleanTarget = '项目';
+            else if (acc.type === 'netlify') cleanTarget = '站点';
+            else if (acc.type === 'server' && acc.deployType === 'local') cleanTarget = '目录';
+            else if (acc.type === 'server') cleanTarget = '远程目录';
+            return {
+                title: isFull ? '全量发布确认' : '增量发布确认',
+                line1: `发布到${platform}${target}？`,
+                line2: isFull ? `这会清理原${cleanTarget}所有内容` : '只上传有变更的文件（增量发布）'
+            };
+        });
+        const confirmPublishSave = async () => {
+            modal.publishSavePrompt = false;
+            try {
+                await persistData({ mark: false, silent: true });
+                dirty.value = false;
+            } catch (e) {
+                showToast('保存失败：' + (e.message || e), 'error');
+                return;
+            }
+            publishSaveDone.value = true;
+            modal.publishConfirm = true; // 第二个弹窗：发布确认
+        };
+        const cancelPublishSave = () => {
+            modal.publishSavePrompt = false;
+            publishPending.value = null;
+            publishSaveDone.value = false;
+        };
+        const confirmPublish = () => {
+            modal.publishConfirm = false;
+            const st = publishPending.value;
+            if (!st) return;
+            publishConfirmApproved.value = true;
+            Promise.resolve(syncToCloudflare(st.forceFull, st.sourceData, st.sourceLabel, st.sourceVersionId))
+                .finally(() => {
+                    publishConfirmApproved.value = false;
+                    publishSaveDone.value = false;
+                    publishPending.value = null;
+                });
+        };
+        const cancelPublish = () => {
+            modal.publishConfirm = false;
+            publishPending.value = null;
+            publishSaveDone.value = false;
         };
 
         // 导出设置：哪个导出项的「文件选择」子面板处于展开（'json'|'html'|'deploy'|null）
@@ -4064,6 +4339,7 @@ const App = {
             versions: false,
             profiles: false,
             sync: false,
+            shareModules: false,
             iconPicker: false,
             friendLinks: false,
             accountEdit: false,
@@ -4085,6 +4361,8 @@ const App = {
             addFooterMenu: false,    // 添加页脚自定义菜单弹窗
             editFooterMenu: false,   // 编辑页脚菜单（固定项/自定义项）弹窗
             publishSettings: false,  // 发布设置弹窗
+            publishConfirm: false,   // 全量发布确认弹窗
+            publishSavePrompt: false, // 发布前未保存询问
             templateSettings: false, // 默认模板设置弹窗
             seo: false,              // SEO 营销配置弹窗
             versionSync: false,      // 版本同步信息弹窗
@@ -4138,7 +4416,7 @@ const App = {
             headerConfig: {
                 title: '',
                 aboutLink: { enabled: true, icon: 'fa fa-info-circle', text: '关于导航', url: 'about', target: '_blank' },
-                footer: { note: '', copyright: '', copyrightName: '', copyrightUrl: '', beian: '', beianUrl: '' }
+                footer: { note: '', copyright: '', copyrightName: '', copyrightUrl: '', beian: '', beianUrl: '', gongan: '', gonganUrl: '', domain: '' }
             },
 sidebarTop: {
                 logoLight: '', sidebarTitle: '',
@@ -4741,12 +5019,12 @@ sidebarTop: {
                         if (typeof data.deploySettings.fullFiles[fk] !== 'boolean') data.deploySettings.fullFiles[fk] = true;
                     }
                     if (!Array.isArray(data.deploySettings.includePaths)) data.deploySettings.includePaths = [];
-                    if (data.deploySettings.defaultTop !== 'incremental' && data.deploySettings.defaultTop !== 'full') data.deploySettings.defaultTop = 'incremental';
+                    if (data.deploySettings.defaultTop !== 'quick' && data.deploySettings.defaultTop !== 'incremental' && data.deploySettings.defaultTop !== 'full') data.deploySettings.defaultTop = 'quick';
                     // 恢复“当前编辑版本”：从持久化的 data.currentVersionId 读取，刷新页面后仍能保持选中与正确的页脚保存路径
                     if (data && data.currentVersionId) currentEditingVersionId.value = data.currentVersionId;
                     hasData.value = true;
                     if (data.site && data.site.title) document.title = data.site.title + ' - 导航站编辑器';
-                    { const _f = document.getElementById('consoleFavicon'); if (_f) _f.href = (data.site && data.site.favicon) || 'assets/images/favicon.png'; }
+                    { const _f = document.getElementById('consoleFavicon'); if (_f) _f.href = (data.site && data.site.favicon) || ''; }
                     try {
                         if (data.categories.length > 0) selectCategory(data.categories[0].id);
                     } catch (e) { console.warn('selectCategory 失败', e); }
@@ -4795,7 +5073,7 @@ sidebarTop: {
                             currentEditingVersionId.value = editInfo.versionId || null;
                             data.currentVersionId = editInfo.versionId || null;
                             if (data.site && data.site.title) document.title = data.site.title + ' - 导航站编辑器';
-                            { const _f = document.getElementById('consoleFavicon'); if (_f) _f.href = (data.site && data.site.favicon) || 'assets/images/favicon.png'; }
+                            { const _f = document.getElementById('consoleFavicon'); if (_f) _f.href = (data.site && data.site.favicon) || ''; }
                             await persistData({ mark: false });
                             try { if (data.categories.length > 0) selectCategory(data.categories[0].id); } catch (e) {}
                             showToast(`已加载版本「${editInfo.note || '未命名'}」到编辑器`, 'success');
@@ -5045,7 +5323,7 @@ sidebarTop: {
                 if (aboutHtml) {
                     Utils.download('about.html', aboutHtml, 'text/html');
                 }
-                // 同步生成 commit.html（已保存新模板则优先用其文件，否则回退旧 generateCommit）
+                // 同步生成 commit.html（仅使用可视化编辑器保存的文件，未保存时不自动生成）
                 const commitExport = await getCommitExport(data);
                 if (commitExport.html) {
                     Utils.download(commitExport.path || 'commit.html', commitExport.html, 'text/html');
@@ -5473,7 +5751,7 @@ sidebarTop: {
         // === 站点设置（浏览器标签 + 关于导航 + 备案） ===
         const openHeaderConfig = () => {
             editForm.headerConfig = {
-                footer: { ...(data.footer || {}) },
+                footer: { note: '', copyright: '', copyrightName: '', copyrightUrl: '', beian: '', beianUrl: '', gongan: '', gonganUrl: '', domain: '', ...(data.footer || data.site.footer || {}) },
                 scrollHighlight: { ...(data.site.scrollHighlight || { enabled: true, color: '#ff6b6b', duration: 1200, blinkCount: 3, blinkDuration: 300, blinkInterval: 150 }) },
                 error404: {
                     enabled: true,
@@ -5494,6 +5772,7 @@ sidebarTop: {
                 rules: (editForm.headerConfig.error404.rules || []).map(r => ({ pattern: (r.pattern || '').trim(), template: r.template || '' }))
             };
             data.site.footer = { ...editForm.headerConfig.footer };
+            data.footer = { ...editForm.headerConfig.footer };
             data.site.scrollHighlight = { ...editForm.headerConfig.scrollHighlight };
             showToast('站点设置已保存', 'success');
             persistData({ mark: true, silent: true })
@@ -6037,7 +6316,7 @@ sidebarTop: {
                     data.site.faviconSrc = editForm.sidebarTop.faviconSrc || '';
                     data.site.faviconEdit = editForm.sidebarTop.faviconEdit || null;
                     document.title = (data.site.title || '导航站编辑器') + ' - 导航站编辑器';
-                    { const _f = document.getElementById('consoleFavicon'); if (_f) _f.href = data.site.favicon || 'assets/images/favicon.png'; }
+                    { const _f = document.getElementById('consoleFavicon'); if (_f) _f.href = data.site.favicon || ''; }
                     // 旧字段废弃，避免重复生效
                     delete data.site.sidebarPopupBackground;
                     showToast('侧边栏顶部设置已保存', 'success');
@@ -7081,6 +7360,13 @@ sidebarTop: {
                 }
                 await saveCurrentToProfile();
                 await Storage.updateVersionData(currentEditingVersionId.value, JSON.parse(JSON.stringify(data)));
+                // 同步重新生成部署文件，避免版本部署快照落后于编辑数据（如 404 规则/模板）
+                try {
+                    const deployFiles = await prepareVersionDeployFiles();
+                    await Storage.writeVersionDeploy(Storage.getCurrentProfileId(), currentEditingVersionId.value, 'deploy1', deployFiles);
+                } catch (deployErr) {
+                    console.warn('生成部署文件失败:', deployErr);
+                }
                 // 刷新版本列表
                 try { await refreshVersions(); } catch (_) {}
                 markClean();
@@ -7190,12 +7476,13 @@ sidebarTop: {
             html = html.replace(/\bchange-href\b/g, '');
             html = html.replace(/href=""/g, 'href="javascript:void(0)" onclick="window.scrollTo(0,0);return false"');
             html = html.replace(/href="\.\/"/g, 'href="javascript:void(0)" onclick="window.scrollTo(0,0);return false"');
-            // 网站提交页：若已保存新模板文件，则优先使用其文件内容（由调用方 fetch 后注入），否则回退旧 generateCommit
+            // 网站提交页：优先使用可视化编辑器保存的文件（由调用方 fetch 后注入）；
+            // 未保存时不再回退旧版 generateCommit（旧模板带“在线工具网”品牌，属历史残留），显示占位提示
             let svCommitHtml;
             if (commitHtmlOverride && commitHtmlOverride.trim()) {
                 svCommitHtml = commitHtmlOverride;
             } else {
-                svCommitHtml = Generator.generateCommit(cleanData);
+                svCommitHtml = '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>网站提交</title></head><body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:Microsoft YaHei,sans-serif;background:#f5f7fa;color:#888"><div style="text-align:center"><p style="font-size:18px;margin:0 0 8px">网站提交页面尚未配置</p><p style="font-size:13px;margin:0">请在编辑器中打开「网站提交」模板编辑器并保存后查看</p></div></body></html>';
             }
             svCommitHtml = svCommitHtml.replace(/<head>/i, '<head>\n    <base href="' + baseHref + '">');
             const svCommitUrl = URL.createObjectURL(new Blob([svCommitHtml], { type: 'text/html;charset=utf-8' }));
@@ -7398,6 +7685,33 @@ sidebarTop: {
             return files;
         };
 
+        // 根据当前 404 配置生成 404 模板、路由规则与入口文件（模板内容从 template/404/ 读取）
+        const buildNotFoundFiles = async () => {
+            const out = [];
+            const e404 = (data.site && data.site.error404) || null;
+            const tpls = (e404 && e404.templates) || [];
+            const rules = (e404 && e404.rules) || [];
+            const def = (e404 && e404.default) || '';
+            for (const name of tpls) {
+                try {
+                    const res = await fetch('/api/404-template-content?name=' + encodeURIComponent(name));
+                    if (res.ok) {
+                        const j = await res.json();
+                        if (j.ok && j.content) {
+                            out.push({ name: '404/' + name, content: j.content, type: 'text/html;charset=utf-8' });
+                        }
+                    }
+                } catch (_e) { console.warn('读取 404 模板失败', name); }
+            }
+            if (tpls.length) {
+                const cleanRules = rules.filter(r => r.pattern && r.template);
+                const rulesObj = { rules: cleanRules, default: def };
+                out.push({ name: '404/rules.json', content: JSON.stringify(rulesObj, null, 2), type: 'application/json;charset=utf-8' });
+                out.push({ name: '404.html', content: buildNotFoundEntry(rulesObj), type: 'text/html;charset=utf-8' });
+            }
+            return out;
+        };
+
         // 准备部署文件：生成 HTML 并获取静态资源；filter 决定包含哪些文件
         const prepareDeploymentFiles = async (filter, sourceData) => {
             const { indexHtml, aboutHtml, commitHtml, commitPath } = await prepareDeploymentHtml(sourceData);
@@ -7422,27 +7736,8 @@ sidebarTop: {
             }
             if (f.notFound) {
                 try {
-                    const e404 = (data.site && data.site.error404) || null;
-                    const tpls = (e404 && e404.templates) || [];
-                    const rules = (e404 && e404.rules) || [];
-                    const def = (e404 && e404.default) || '';
-                    for (const name of tpls) {
-                        try {
-                            const res = await fetch('/api/404-template-content?name=' + encodeURIComponent(name));
-                            if (res.ok) {
-                                const j = await res.json();
-                                if (j.ok && j.content) {
-                                    files.push({ name: '404/' + name, content: j.content, type: 'text/html;charset=utf-8' });
-                                }
-                            }
-                        } catch (_e) { console.warn('读取 404 模板失败', name); }
-                    }
-                    if (tpls.length) {
-                        const cleanRules = rules.filter(r => r.pattern && r.template);
-                        const rulesObj = { rules: cleanRules, default: def };
-                        files.push({ name: '404/rules.json', content: JSON.stringify(rulesObj, null, 2), type: 'application/json;charset=utf-8' });
-                        files.push({ name: '404.html', content: buildNotFoundEntry(rulesObj), type: 'text/html;charset=utf-8' });
-                    }
+                    const nfFiles = await buildNotFoundFiles();
+                    for (const nf of nfFiles) files.push(nf);
                 } catch (e) {
                     console.warn('生成 404 失败，跳过', e);
                 }
@@ -7492,7 +7787,8 @@ sidebarTop: {
             return files;
         };
 
-        // 获取网站提交页导出内容：优先使用当前版本部署目录下 footer/commit.html（编辑器保存的文件），否则回退旧 generateCommit
+        // 获取网站提交页导出内容：优先使用当前版本部署目录下 footer/commit.html（编辑器保存的文件）；
+        // 不再回退旧版 generateCommit（旧模板带“在线工具网”品牌，属历史残留）
         const getCommitExport = async (srcData) => {
             const url = getFooterDeployBase() + '/commit.html';
             try {
@@ -7502,9 +7798,8 @@ sidebarTop: {
                     // 网站提交页统一存到 footer/commit.html（根目录 commit.html 是历史残留，不再使用）
                     return { html, path: 'footer/commit.html' };
                 }
-            } catch (_e) { /* 回退旧逻辑 */ }
-            const html = srcData.commit ? Generator.generateCommit(srcData) : '';
-            return { html: html || '', path: 'footer/commit.html' };
+            } catch (_e) { /* 忽略：未保存时不再自动生成 */ }
+            return { html: '', path: 'footer/commit.html' };
         };
 
         // 仅生成部署所需的 HTML 内容（供后端打包 .zip 使用）
@@ -7684,10 +7979,15 @@ sidebarTop: {
 
                 showToast('正在请求后端打包 .zip...', 'info', 10000);
                 // 大文件走 "后端保存到本地再 GET 下载" 分支，避免 headless/某些浏览器 fetch 大 blob 失败
+                const extraFiles = buildSeoFiles();
+                try {
+                    const nfFiles = await buildNotFoundFiles();
+                    for (const nf of nfFiles) extraFiles.push({ path: nf.name, content: nf.content });
+                } catch (_e) { console.warn('生成 404 失败，跳过', _e); }
                 const response = await fetch('/api/deployment-zip', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ indexHtml: idx, aboutHtml: abt, commitHtml: cmt, fileFilter, includePaths, extraFiles: buildSeoFiles(), download: true, fileName: exportName })
+                    body: JSON.stringify({ indexHtml: idx, aboutHtml: abt, commitHtml: cmt, fileFilter, includePaths, extraFiles, download: true, fileName: exportName })
                 });
                 if (!response.ok) {
                     const err = await response.json().catch(() => ({ error: '后端打包失败' }));
@@ -7894,7 +8194,7 @@ sidebarTop: {
                     name: templateName,
                     note: '来自当前页：' + (data.site.title || '未命名'),
                     timestamp: Date.now(),
-                    data: JSON.parse(JSON.stringify(data))
+                    data: stripVersionRuntime(data)
                 };
                 await Storage.saveDefaultTemplate(null, templateName, files, setting);
                 showToast('已将当前页保存为默认模板：' + templateName, 'success', 5000);
@@ -7999,9 +8299,213 @@ sidebarTop: {
             });
         };
 
+        // ===== 分享 / 导入（板块选择 + .naveditor 包）=====
+        // 板块清单：分享/导入/恢复共用；私有字段（凭证、基线、验证码等）结构上不在白名单内
+        const SHARE_MODULES = [
+            { key: 'site', label: '站点设置', desc: '标题/描述/关键词/图标/侧栏/404 等' },
+            { key: 'categories', label: '分类与网站', desc: '导航分类与网址卡片' },
+            { key: 'friendLinks', label: '友情链接', desc: '首页与页脚友链' },
+            { key: 'searchConfig', label: '搜索配置', desc: '搜索引擎与搜索框' },
+            { key: 'wallpapers', label: '背景与壁纸', desc: '背景图与自定义壁纸' },
+            { key: 'about', label: '关于页', desc: '关于导航页面内容' },
+            { key: 'commit', label: '网站提交页', desc: '提交页内容与表单' },
+            { key: 'footer', label: '页脚/菜单/备案', desc: '页脚备案、版权、菜单' },
+            { key: 'seo', label: 'SEO', desc: '关键词等（不含站点验证码）' },
+            { key: 'dailyText', label: '每日一言', desc: '页脚每日一言' }
+        ];
+        const PROJECT_FIELDS = {
+            site: ['site'],
+            categories: ['categories'],
+            friendLinks: ['friendLinks'],
+            searchConfig: ['searchConfig'],
+            wallpapers: ['background', 'bottomBackground', 'footerBackground', 'customWallpapers', 'wallpaperOrder', 'wallpaperGroups'],
+            about: ['about'],
+            commit: ['commit'],
+            footer: ['footer', 'menuKeys', 'footerMenuOrder', 'footerMenuItems', 'footerFixedMeta'],
+            seo: ['seo'],
+            dailyText: ['dailyText']
+        };
+        const projectData = (src, modules) => {
+            const out = {};
+            for (const m of modules) {
+                for (const f of (PROJECT_FIELDS[m] || [])) {
+                    if (src && src[f] !== undefined) out[f] = JSON.parse(JSON.stringify(src[f]));
+                }
+            }
+            // 双保险：私有字段即使误入也剥离（结构上本就不会被复制）
+            ['deployBaseline', 'deploySettings', 'currentVersionId', 'versionOrder'].forEach(k => delete out[k]);
+            if (out.seo && out.seo.verification) delete out.seo.verification;
+            return out;
+        };
+
+        const shareDraft = ref({ mode: 'share', name: '', modules: {}, includeDeploy: true, version: null, importedData: null, deployFiles: [] });
+        const defaultShareModules = () => Object.fromEntries(SHARE_MODULES.map(m => [m.key, true]));
+
         const exportVersion = (version) => {
             const json = JSON.stringify(version.data, null, 2);
             Utils.download(`version_${version.id}.json`, json, 'application/json');
+        };
+
+        // 历史版本「分享」：弹出板块选择，生成 .naveditor 分享包
+        const shareVersion = (version) => {
+            shareDraft.value = {
+                mode: 'share',
+                name: (version && (version.note || version.name)) || '分享',
+                modules: defaultShareModules(),
+                includeDeploy: true,
+                version: version || null,
+                importedData: null,
+                deployFiles: []
+            };
+            modal.shareModules = true;
+        };
+
+        const confirmShare = async () => {
+            const d = shareDraft.value;
+            const sel = SHARE_MODULES.filter(m => d.modules[m.key]).map(m => m.key);
+            if (sel.length === 0) { showToast('请至少选择一个板块', 'warning'); return; }
+            if (typeof window.JSZip !== 'function') { showToast('JSZip 库未加载', 'error'); return; }
+            try {
+                showToast('正在生成分享包...', 'info', 5000);
+                const dataObj = projectData(d.version.data, sel);
+                const manifest = { format: 'naveditor-package', version: 1, kind: 'version', modules: sel, name: d.name, note: d.name, createdAt: Date.now() };
+                const zip = new window.JSZip();
+                zip.file('manifest.json', JSON.stringify(manifest, null, 2));
+                zip.file('data.json', JSON.stringify(dataObj, null, 2));
+                if (d.includeDeploy) {
+                    // 读取当前版本部署文件快照（自定义页面/素材）
+                    try {
+                        const siteId = Storage.getCurrentProfileId();
+                        const vid = d.version && d.version.id;
+                        if (siteId && vid) {
+                            const res = await fetch('/api/storage/version-deploy-read?site=' + encodeURIComponent(siteId) + '&version=' + encodeURIComponent(vid) + '&group=deploy1');
+                            if (res.ok) {
+                                const j = await res.json();
+                                if (j.ok && Array.isArray(j.files)) {
+                                    for (const f of j.files) {
+                                        zip.file('deploy/' + f.path, f.content, { binary: !!f.binary });
+                                    }
+                                }
+                            }
+                        }
+                    } catch (_e) { console.warn('读取部署快照失败，分享包仅含数据', _e); }
+                }
+                const blob = await zip.generateAsync({ type: 'blob' });
+                Utils.download((d.name || '分享') + '.naveditor', blob, 'application/zip');
+                modal.shareModules = false;
+                showToast('分享包已生成', 'success');
+            } catch (e) {
+                showToast('生成分享包失败：' + (e.message || e), 'error');
+            }
+        };
+
+        // 导入（兼容 .naveditor 分享包 / 旧 JSON）：解析后弹出板块选择
+        const importVersionFile = () => {
+            const inp = document.createElement('input');
+            inp.type = 'file';
+            inp.accept = '.json,.naveditor,application/json,application/zip';
+            inp.onchange = async () => {
+                const file = inp.files && inp.files[0];
+                if (!file) return;
+                try {
+                    const isNaveditor = /\.naveditor$/i.test(file.name);
+                    let dataObj = null;
+                    let deployFiles = [];
+                    let note = '导入 ' + Utils.formatTime(Date.now());
+                    if (isNaveditor) {
+                        if (typeof window.JSZip !== 'function') throw new Error('JSZip 库未加载');
+                        const zip = await window.JSZip.loadAsync(await file.arrayBuffer());
+                        const manifestFile = zip.file('manifest.json');
+                        const dataFile = zip.file('data.json');
+                        if (!manifestFile || !dataFile) throw new Error('分享包缺少 manifest.json / data.json');
+                        const manifest = JSON.parse(await manifestFile.async('string'));
+                        const imported = JSON.parse(await dataFile.async('string'));
+                        if (!imported || typeof imported !== 'object' || (!imported.site && !imported.categories)) {
+                            throw new Error('分享包数据无法识别');
+                        }
+                        dataObj = imported;
+                        note = (manifest && (manifest.name || manifest.note)) || note;
+                        const deployDir = zip.folder('deploy');
+                        if (deployDir) {
+                            const names = Object.keys(deployDir.files).filter(n => !deployDir.files[n].dir);
+                            for (const n of names) {
+                                const f = deployDir.files[n];
+                                const rel = n.replace(/^deploy\//, '');
+                                const content = await f.async('base64');
+                                const isBinary = !/\.(html?|css|js|json|svg|txt|xml)$/i.test(rel);
+                                deployFiles.push({ path: rel, content, binary: isBinary });
+                            }
+                        }
+                    } else {
+                        const text = await file.text();
+                        const obj = JSON.parse(text);
+                        let dd = obj;
+                        if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+                            if (obj.data && typeof obj.data === 'object' && (obj.data.site || obj.data.categories)) {
+                                dd = obj.data;
+                            } else if (obj.site || obj.categories) {
+                                dd = obj;
+                            }
+                        }
+                        if (!dd || typeof dd !== 'object' || Array.isArray(dd) || (!dd.site && !dd.categories)) {
+                            throw new Error('无法识别的版本数据格式（需要包含 site / categories 字段）');
+                        }
+                        dataObj = JSON.parse(JSON.stringify(dd));
+                        note = (obj && (obj.note || obj.name)) ? String(obj.note || obj.name) : note;
+                    }
+                    if (!Array.isArray(dataObj.categories)) dataObj.categories = [];
+                    if (!dataObj.site || typeof dataObj.site !== 'object') dataObj.site = {};
+                    shareDraft.value = {
+                        mode: 'import',
+                        name: note,
+                        modules: defaultShareModules(),
+                        includeDeploy: true,
+                        version: null,
+                        importedData: dataObj,
+                        deployFiles
+                    };
+                    modal.shareModules = true;
+                } catch (e) {
+                    showToast('导入失败：' + (e.message || e), 'error');
+                }
+            };
+            inp.click();
+        };
+
+        const confirmImport = async () => {
+            const d = shareDraft.value;
+            const sel = SHARE_MODULES.filter(m => d.modules[m.key]).map(m => m.key);
+            if (sel.length === 0) { showToast('请至少选择一个板块', 'warning'); return; }
+            try {
+                showToast('正在导入版本...', 'info', 5000);
+                // 以当前编辑数据为底，仅覆盖选中的板块
+                const base = JSON.parse(JSON.stringify(data));
+                for (const m of sel) {
+                    for (const f of (PROJECT_FIELDS[m] || [])) {
+                        if (d.importedData[f] !== undefined) base[f] = JSON.parse(JSON.stringify(d.importedData[f]));
+                    }
+                }
+                if (!Array.isArray(base.categories)) base.categories = [];
+                if (!base.site || typeof base.site !== 'object') base.site = {};
+                const saved = await Storage.saveVersion(base, d.name);
+                if (d.deployFiles && d.deployFiles.length) {
+                    try {
+                        await Storage.writeVersionDeploy(Storage.getCurrentProfileId(), saved.id, 'deploy1', d.deployFiles);
+                    } catch (deployErr) { console.warn('写入导入部署文件失败', deployErr); }
+                } else {
+                    try {
+                        const deployFiles = await prepareVersionDeployFiles(base);
+                        await Storage.writeVersionDeploy(Storage.getCurrentProfileId(), saved.id, 'deploy1', deployFiles);
+                    } catch (deployErr) { console.warn('导入版本生成部署文件失败:', deployErr); }
+                }
+                if (!Array.isArray(data.versionOrder)) data.versionOrder = [];
+                data.versionOrder = [saved.id].concat(data.versionOrder.filter(id => id !== saved.id));
+                await refreshVersions();
+                modal.shareModules = false;
+                showToast('已导入版本：' + d.name, 'success');
+            } catch (e) {
+                showToast('导入失败：' + (e.message || e), 'error');
+            }
         };
 
         // 按用户自定义顺序（data.versionOrder）排列版本；无自定义顺序时保持后端默认（时间倒序）
@@ -8023,55 +8527,6 @@ sidebarTop: {
             list.forEach(v => {
                 try { versionDataHashCache[v.id] = hashData(v.data); } catch (_) { versionDataHashCache[v.id] = ''; }
             });
-        };
-
-        // 从 JSON 文件导入为新版本（兼容：版本历史「下载」导出的 version_*.json、站点/编辑器导出的 data.json、
-        // 以及 { id, name, note, data } 形式的版本/站点设置）
-        const importVersionFile = () => {
-            const inp = document.createElement('input');
-            inp.type = 'file';
-            inp.accept = '.json,application/json';
-            inp.onchange = async () => {
-                const file = inp.files && inp.files[0];
-                if (!file) return;
-                try {
-                    const text = await file.text();
-                    const obj = JSON.parse(text);
-                    let dataObj = obj;
-                    if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
-                        if (obj.data && typeof obj.data === 'object' && (obj.data.site || obj.data.categories)) {
-                            dataObj = obj.data;      // {id,name,note,data} 形式
-                        } else if (obj.site || obj.categories) {
-                            dataObj = obj;           // 直接是数据对象
-                        }
-                    }
-                    if (!dataObj || typeof dataObj !== 'object' || Array.isArray(dataObj)
-                        || (!dataObj.site && !dataObj.categories)) {
-                        throw new Error('无法识别的版本数据格式（需要包含 site / categories 字段）');
-                    }
-                    const clean = JSON.parse(JSON.stringify(dataObj));
-                    if (!Array.isArray(clean.categories)) clean.categories = [];
-                    if (!clean.site || typeof clean.site !== 'object') clean.site = {};
-                    const note = (obj && (obj.note || obj.name))
-                        ? String(obj.note || obj.name)
-                        : ('导入 ' + Utils.formatTime(Date.now()));
-                    showToast('正在导入版本...', 'info', 5000);
-                    const saved = await Storage.saveVersion(clean, note);
-                    try {
-                        const deployFiles = await prepareVersionDeployFiles(clean);
-                        await Storage.writeVersionDeploy(Storage.getCurrentProfileId(), saved.id, 'deploy1', deployFiles);
-                    } catch (deployErr) {
-                        console.warn('导入版本生成部署文件失败:', deployErr);
-                    }
-                    if (!Array.isArray(data.versionOrder)) data.versionOrder = [];
-                    data.versionOrder = [saved.id].concat(data.versionOrder.filter(id => id !== saved.id));
-                    await refreshVersions();
-                    showToast('已导入版本：' + note, 'success');
-                } catch (e) {
-                    showToast('导入失败：' + (e.message || e), 'error');
-                }
-            };
-            inp.click();
         };
 
         const openVersionLocation = async (version) => {
@@ -8426,9 +8881,222 @@ sidebarTop: {
             Utils.download(`profile_${p.name}_${p.id}.json`, json, 'application/json');
         };
 
+        // === 站点管理「恢复」：导出 / 导入全部站点与版本 ===
+        const allModulesKey = () => SHARE_MODULES.map(m => m.key);
+
+        const exportAllSitesPackage = async () => {
+            try {
+                showToast('正在导出全部站点...', 'info', 5000);
+                const sites = await Storage.getProfiles();
+                const payload = { sites: [] };
+                for (const s of sites) {
+                    const setting = await Storage.getProfile(s.id);
+                    if (!setting) continue;
+                    const versions = await Storage.getVersions(s.id);
+                    const vlist = [];
+                    for (const v of (versions || [])) {
+                        const vs = await Storage.getVersionForSite(s.id, v.id);
+                        if (vs && vs.data) {
+                            vlist.push({
+                                id: vs.id,
+                                name: vs.name,
+                                note: vs.note,
+                                timestamp: vs.timestamp,
+                                starred: !!vs.starred,
+                                data: projectData(vs.data, allModulesKey())
+                            });
+                        }
+                    }
+                    payload.sites.push({
+                        id: setting.id,
+                        name: setting.name,
+                        createdAt: setting.createdAt,
+                        updatedAt: setting.updatedAt,
+                        data: projectData(setting.data, allModulesKey()),
+                        versions: vlist
+                    });
+                }
+                if (!payload.sites.length) { showToast('没有可导出的站点', 'warning'); return; }
+                if (typeof window.JSZip !== 'function') { showToast('JSZip 库未加载', 'error'); return; }
+                const manifest = {
+                    format: 'naveditor-package', version: 1, kind: 'sites-backup',
+                    modules: allModulesKey(), name: '全部站点备份', note: '全部站点备份', createdAt: Date.now()
+                };
+                const zip = new window.JSZip();
+                zip.file('manifest.json', JSON.stringify(manifest, null, 2));
+                zip.file('data.json', JSON.stringify(payload, null, 2));
+                const blob = await zip.generateAsync({ type: 'blob' });
+                Utils.download('NavEditor全部站点备份.naveditor', blob, 'application/zip');
+                showToast('已导出全部站点备份（不含账号凭证与发布基线）', 'success');
+            } catch (e) {
+                showToast('导出失败：' + (e.message || e), 'error');
+            }
+        };
+
+        const importAllSitesPackage = () => {
+            const inp = document.createElement('input');
+            inp.type = 'file';
+            inp.accept = '.naveditor,application/zip';
+            inp.onchange = async () => {
+                const file = inp.files && inp.files[0];
+                if (!file) return;
+                try {
+                    if (typeof window.JSZip !== 'function') throw new Error('JSZip 库未加载');
+                    const zip = await window.JSZip.loadAsync(await file.arrayBuffer());
+                    const mf = zip.file('manifest.json');
+                    const df = zip.file('data.json');
+                    if (!mf || !df) throw new Error('恢复包缺少 manifest.json / data.json');
+                    await mf.async('string');
+                    const payload = JSON.parse(await df.async('string'));
+                    if (!payload || !Array.isArray(payload.sites)) throw new Error('恢复包格式不正确');
+                    showToast('正在恢复站点...', 'info', 8000);
+                    let created = 0;
+                    for (const s of payload.sites) {
+                        const baseData = (s.data && typeof s.data === 'object') ? JSON.parse(JSON.stringify(s.data)) : {};
+                        if (!baseData.site || typeof baseData.site !== 'object') baseData.site = {};
+                        if (!Array.isArray(baseData.categories)) baseData.categories = [];
+                        const existing = await Storage.getProfiles();
+                        let name = (s.name || '恢复站点').trim();
+                        let n = 0;
+                        while (existing.some(p => p.name === name)) {
+                            n++;
+                            name = (s.name || '恢复站点') + (n > 1 ? ' (' + n + ')' : ' 恢复');
+                        }
+                        const id = await Storage.createProfile(name, baseData);
+                        await Storage.saveProfile({ id, name, createdAt: s.createdAt || Date.now(), data: baseData, updatedAt: Date.now() });
+                        for (const v of (s.versions || [])) {
+                            if (!v || !v.data) continue;
+                            await Storage.createVersionForSite(id, v.data, v.note || v.name || '恢复版本', { timestamp: v.timestamp, starred: v.starred });
+                        }
+                        created++;
+                    }
+                    await loadProfiles();
+                    showToast('已恢复 ' + created + ' 个站点（含版本历史）', 'success');
+                } catch (e) {
+                    showToast('恢复失败：' + (e.message || e), 'error');
+                }
+            };
+            inp.click();
+        };
+
         // === 部署账号管理 ===
         const openSettings = () => {
             modal.settings = true;
+            loadPasswordDirInfo();
+            loadDataDirInfo();
+        };
+
+        // === 账号凭证存储目录（外置，首次添加账号时选择）===
+        const passwordDirInfo = ref({ dir: '', configured: false, defaultDir: '' });
+        const passwordDirInput = ref('');
+        const passwordDirEditing = ref(false);
+        const loadPasswordDirInfo = async () => {
+            try {
+                const res = await fetch('/api/password-dir');
+                if (res.ok) {
+                    const j = await res.json();
+                    if (j.ok) passwordDirInfo.value = j;
+                }
+            } catch (_e) {}
+        };
+        const startEditPasswordDir = () => {
+            passwordDirInput.value = passwordDirInfo.value.dir || passwordDirInfo.value.defaultDir || '';
+            passwordDirEditing.value = true;
+        };
+        const cancelEditPasswordDir = () => { passwordDirEditing.value = false; };
+        const savePasswordDirInput = async () => {
+            const dir = (passwordDirInput.value || '').trim();
+            if (!dir) { showToast('请输入账号存储文件夹路径', 'warning'); return; }
+            try {
+                const post = await fetch('/api/password-dir', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dir })
+                });
+                const pj = await post.json();
+                if (pj.ok) {
+                    passwordDirInfo.value = { dir: pj.dir, configured: true, defaultDir: passwordDirInfo.value.defaultDir };
+                    passwordDirEditing.value = false;
+                    showToast('账号存储文件夹已保存', 'success');
+                    await loadAccountsFromServer();
+                } else {
+                    showToast('保存失败：' + (pj.error || '未知错误'), 'error');
+                }
+            } catch (e) {
+                showToast('保存失败：' + (e.message || e), 'error');
+            }
+        };
+        const browsePasswordDir = async () => {
+            try {
+                const res = await fetch('/api/choose-password-dir');
+                if (!res.ok) { showToast('后端未就绪：请关闭并重新启动 NavEditor', 'warning'); return; }
+                const j = await res.json();
+                if (j.ok && j.dir) passwordDirInput.value = j.dir;
+                else showToast(j && j.error ? ('未选择：' + j.error) : '已取消', 'warning');
+            } catch (e) {
+                showToast('浏览失败：' + (e.message || e), 'error');
+            }
+        };
+        const ensurePasswordDir = async () => {
+            await loadPasswordDirInfo();
+            if (passwordDirInfo.value.configured) return true;
+            // 未配置：打开账号管理并展开存储目录编辑，让用户确认路径（可手动输入或浏览）
+            startEditPasswordDir();
+            modal.settings = true;
+            showToast('请先设置账号存储文件夹（可手动输入或点“浏览”）', 'warning');
+            return false;
+        };
+
+        // === 数据目录（web/、password/ 所在根目录，外置后站点数据与软件更新隔离）===
+        const dataDirInfo = ref({ dir: '', configured: false, defaultDir: '' });
+        const dataDirInput = ref('');
+        const dataDirEditing = ref(false);
+        const loadDataDirInfo = async () => {
+            try {
+                const res = await fetch('/api/data-dir');
+                if (res.ok) {
+                    const j = await res.json();
+                    if (j.ok) dataDirInfo.value = j;
+                }
+            } catch (_e) {}
+        };
+        const startEditDataDir = () => {
+            dataDirInput.value = dataDirInfo.value.dir || dataDirInfo.value.defaultDir || '';
+            dataDirEditing.value = true;
+        };
+        const cancelEditDataDir = () => { dataDirEditing.value = false; };
+        const saveDataDirInput = async () => {
+            const dir = (dataDirInput.value || '').trim();
+            if (!dir) { showToast('请输入数据目录路径', 'warning'); return; }
+            try {
+                const post = await fetch('/api/data-dir', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dir })
+                });
+                const pj = await post.json();
+                if (pj.ok) {
+                    dataDirInfo.value = { dir: pj.dir, configured: true, defaultDir: dataDirInfo.value.defaultDir };
+                    dataDirEditing.value = false;
+                    showToast('数据目录已保存，旧数据已迁移', 'success');
+                    await Promise.all([loadProfiles(), loadAccountsFromServer()]);
+                } else {
+                    showToast('保存失败：' + (pj.error || '未知错误'), 'error');
+                }
+            } catch (e) {
+                showToast('保存失败：' + (e.message || e), 'error');
+            }
+        };
+        const browseDataDir = async () => {
+            try {
+                const res = await fetch('/api/choose-data-dir');
+                if (!res.ok) { showToast('后端未就绪：请关闭并重新启动 NavEditor', 'warning'); return; }
+                const j = await res.json();
+                if (j.ok && j.dir) dataDirInput.value = j.dir;
+                else showToast(j && j.error ? ('未选择：' + j.error) : '已取消', 'warning');
+            } catch (e) {
+                showToast('浏览失败：' + (e.message || e), 'error');
+            }
         };
 
         // === 账号磁盘存储（替代浏览器 localStorage，保存到站点根目录 password/ 文件夹，按类型分文件）===
@@ -12748,7 +13416,9 @@ sidebarTop: {
             }
         };
 
-        const addAccount = () => {
+        const addAccount = async () => {
+            // 首次添加账号：确保凭证存储目录已配置
+            if (!(await ensurePasswordDir())) return;
             // 已选中分类时，自动沿用当前分类对应的平台类型（如「服务器」→ server）
             const presetType = (accountFilter.value && accountFilter.value !== 'all') ? accountFilter.value : 'cloudflare';
             editForm.account = { id: null, type: presetType, name: '', accountId: '', projectName: '', apiToken: '', owner: '', repo: '', branch: 'main', token: '', deployType: 'nginx', localPath: '', localPreScript: '', localPostScript: '', host: '', port: 22, username: '', authMethod: 'password', password: '', privateKey: '', privateKeyPath: '', remotePath: '', remoteCommand: '', siteUrl: '' };
@@ -12882,7 +13552,7 @@ sidebarTop: {
         const versionDataHashCache = {};
 
         // 发布成功后记录「版本 ↔ 账号」关联（本地幂等更新，不产生重复条目）
-        const recordVersionSync = async (versionId, account, dataHash) => {
+        const recordVersionSync = async (versionId, account, dataHash, files) => {
             if (!versionId || !account || !account.id) return;
             try {
                 const vs = await Storage.getVersion(versionId);
@@ -12896,7 +13566,16 @@ sidebarTop: {
                     lastSyncAt: Date.now(),
                     dataHash: dataHash || ''
                 };
-                await Storage.patchVersionSetting(versionId, { syncInfo });
+                // 版本级发布基线：该版本发布到该账号的文件哈希快照（记忆/审计用，不进分享包）
+                const deployBaselines = (vs.deployBaselines && typeof vs.deployBaselines === 'object') ? vs.deployBaselines : {};
+                deployBaselines[account.id] = {
+                    accountId: account.id,
+                    accountName: account.name || '',
+                    lastPublishAt: Date.now(),
+                    dataHash: dataHash || '',
+                    files: (files && typeof files === 'object') ? files : {}
+                };
+                await Storage.patchVersionSetting(versionId, { syncInfo, deployBaselines });
             } catch (e) {
                 console.warn('记录版本同步信息失败:', e);
             }
@@ -12913,9 +13592,18 @@ sidebarTop: {
 
         // 「同步信息」弹窗：展示该版本发布过的账号、各账号最后同步时间与未发布修改状态
         const syncVersion = ref(null);
-        const openVersionSyncInfo = (version) => {
+        const versionUploadRecords = ref([]);
+        const openVersionSyncInfo = async (version) => {
             syncVersion.value = version || null;
+            versionUploadRecords.value = [];
             modal.versionSync = true;
+            if (version && version.id) {
+                try {
+                    versionUploadRecords.value = await Storage.getVersionUploadRecords(Storage.getCurrentProfileId(), version.id);
+                } catch (_e) {
+                    versionUploadRecords.value = [];
+                }
+            }
         };
         // 弹窗内账号显示：优先取当前账号名称（改名后展示新名），否则用记录时的名称
         const syncAccountDisplayName = (si) => {
@@ -12932,7 +13620,8 @@ sidebarTop: {
 
         // 统一收集部署文件（发布 / 下载部署文件 / 下载修改文件共用同一套逻辑与口径）
         // scopeKey: 'fullFiles'（全量）| 'incrementalFiles'（增量）；sourceData 为空时使用当前编辑状态
-        const collectDeployFiles = async (sourceData, scopeKey) => {
+        // opts.skipHash：快速发布用（不比对哈希，跳过计算哈希以提速）
+        const collectDeployFiles = async (sourceData, scopeKey, opts = {}) => {
             const ds = (data.deploySettings && typeof data.deploySettings === 'object') ? data.deploySettings : {};
             const df = (ds[scopeKey] && typeof ds[scopeKey] === 'object')
                 ? ds[scopeKey]
@@ -12965,13 +13654,18 @@ sidebarTop: {
             const enc = new TextEncoder();
             for (const f of filesData.files) {
                 f.binary = !!f.binary;
-                f.hash = await computeFileHash(f.content, f.binary);
+                f.mtime = Number(f.mtime) || 0;
+                // 生成文件（mtime=0，如 index/about/commit.html）在快速发布中总是上传
+                f.always = f.mtime === 0;
+                if (!opts.skipHash) {
+                    f.hash = await computeFileHash(f.content, f.binary);
+                }
                 f.bytes = f.binary ? Math.max(1, Math.floor(f.content.length * 3 / 4)) : enc.encode(f.content).length;
             }
             return filesData.files;
         };
 
-        const syncToCloudflare = async (forceFull = false, sourceData = null, sourceLabel = '', sourceVersionId = '') => {
+        const syncToCloudflare = async (forceFull = false, sourceData = null, sourceLabel = '', sourceVersionId = '', quick = false, quickState = null) => {
             if (cfAccounts.value.length === 0) {
                 showToast('请先添加账号', 'warning');
                 modal.settings = true;
@@ -12980,6 +13674,30 @@ sidebarTop: {
             if (!activeAccountId.value) {
                 showToast('请选择要部署到的账号', 'warning');
                 return;
+            }
+            // 发布前流程（仅工具栏的增量/全量发布，即 sourceData 为空时）：
+            // 未保存先询问保存，然后弹出发布确认
+            if (!publishConfirmApproved.value && !sourceData) {
+                if (quick) {
+                    // 快速发布：不弹确认；未保存时静默保存后直接继续
+                    if (dirty.value && !publishSaveDone.value) {
+                        try {
+                            await persistData({ mark: false, silent: true });
+                            dirty.value = false;
+                        } catch (e) {
+                            showToast('保存失败：' + (e.message || e), 'error');
+                            return;
+                        }
+                    }
+                } else {
+                    publishPending.value = { forceFull, sourceData: null, sourceLabel: '', sourceVersionId: '' };
+                    if (dirty.value && !publishSaveDone.value) {
+                        modal.publishSavePrompt = true;
+                        return;
+                    }
+                    modal.publishConfirm = true;
+                    return;
+                }
             }
 
             const account = cfAccounts.value.find(a => a.id === activeAccountId.value);
@@ -12990,28 +13708,42 @@ sidebarTop: {
 
             // 统一生成部署 HTML 并收集文件（与「打包导出 / 下载修改文件」同一套逻辑）
             // sourceData 非空时（发布历史版本快照）以该快照数据为发布源，否则用当前编辑状态
-            const scopeKey = forceFull ? 'fullFiles' : 'incrementalFiles';
+            // 快速发布：quickState 已由 quickPublish 预收集并计算好修改文件，直接复用
+            let files;
             syncDetail.show = false;
-            const files = await collectDeployFiles(sourceData || undefined, scopeKey);
+            if (quick && quickState && Array.isArray(quickState.files)) {
+                files = quickState.files;
+            } else {
+                const scopeKey = (forceFull || quick) ? 'fullFiles' : 'incrementalFiles';
+                files = await collectDeployFiles(sourceData || undefined, scopeKey);
+            }
 
             // 增量比对：与上次发布基线比较，只上传变更/新增文件
+            // 快速发布：基于本地记录（上次快速发布的文件修改时间）只传修改/新增文件，不比对哈希
             const key = getAccountKey(account);
             const baseline = (data.deployBaseline && data.deployBaseline[key]) || {};
-            let toUpload, modeLabel;
-            if (forceFull || Object.keys(baseline).length === 0) {
+            let toUpload, modeLabel, toDelete = [];
+            if (quick) {
+                toUpload = (quickState && Array.isArray(quickState.toUpload)) ? quickState.toUpload : files;
+                // Vercel/Netlify 为快照部署，实际会全量上传（提示/履历按真实数量）
+                if (account.type === 'vercel' || account.type === 'netlify') toUpload = files;
+                modeLabel = `快速发布（直传 ${toUpload.length} 个修改文件，不比对哈希）`;
+            } else if (forceFull || Object.keys(baseline).length === 0) {
                 toUpload = files;
                 modeLabel = Object.keys(baseline).length === 0 ? '首次发布（自动全量并建基线）' : '全量发布';
             } else {
                 toUpload = files.filter(f => baseline[f.path] !== f.hash);
                 modeLabel = `增量发布（仅 ${toUpload.length} 个变更文件）`;
             }
-            // 计算“此前发布过、本次已从部署集移除”的文件（历史残留：根 commit.html、password/ 等）。
-            // GitHub 需显式删除远端文件；Cloudflare/Vercel/Netlify 为快照部署，新部署自动不含这些文件。
-            const prevPaths = Object.keys(baseline);
-            const currentPaths = new Set(files.map(f => f.path));
-            const toDelete = prevPaths.filter(p => !currentPaths.has(p));
-            if (toDelete.length) {
-                modeLabel += `（另清理 ${toDelete.length} 个旧文件）`;
+            if (!quick) {
+                // 计算“此前发布过、本次已从部署集移除”的文件（历史残留：根 commit.html、password/ 等）。
+                // GitHub 需显式删除远端文件；Cloudflare/Vercel/Netlify 为快照部署，新部署自动不含这些文件。
+                const prevPaths = Object.keys(baseline);
+                const currentPaths = new Set(files.map(f => f.path));
+                toDelete = prevPaths.filter(p => !currentPaths.has(p));
+                if (toDelete.length) {
+                    modeLabel += `（另清理 ${toDelete.length} 个旧文件）`;
+                }
             }
 
             const isGitHub = account.type === 'github';
@@ -13098,7 +13830,7 @@ sidebarTop: {
                 };
 
                 const result = isGitHub
-                    ? await GitHubSync.deployFiles(files, account, onProgress, { onlyFiles: toUpload, deleteFiles: toDelete, onDetail })
+                    ? await GitHubSync.deployFiles(files, account, onProgress, { onlyFiles: toUpload, deleteFiles: toDelete, onDetail, forceFull })
                     : isVercel
                     ? await VercelSync.deployFiles(files, account, onProgress, { onDetail })
                     : isNetlify
@@ -13108,17 +13840,46 @@ sidebarTop: {
                     : await CloudflareSync.deployFiles(files, account, onProgress, { onlyFiles: toUpload, deleteFiles: toDelete, onDetail });
 
                 // 写回全量基线（无论增量还是全量，远端最终状态 = 全量 files）
-                if (!data.deployBaseline) data.deployBaseline = {};
-                const newBaseline = {};
-                for (const f of files) newBaseline[f.path] = f.hash;
-                data.deployBaseline[key] = newBaseline;
-                persistData({ mark: false, silent: true });
+                // 快速发布不更新基线：下次仍会按当前基线比对，保持“不记忆、直传”语义
+                let newBaseline = {};
+                if (!quick) {
+                    if (!data.deployBaseline) data.deployBaseline = {};
+                    newBaseline = {};
+                    for (const f of files) newBaseline[f.path] = f.hash;
+                    data.deployBaseline[key] = newBaseline;
+                    persistData({ mark: false, silent: true });
+                }
 
                 // 记录「版本 ↔ 账号」同步关联：发布源为版本快照时记到该版本，否则记到当前编辑版本
                 const syncVerId = sourceVersionId || currentEditingVersionId.value || '';
                 if (syncVerId) {
-                    await recordVersionSync(syncVerId, account, hashData(sourceData || data));
+                    await recordVersionSync(syncVerId, account, hashData(sourceData || data), newBaseline);
                     try { await refreshVersions(); } catch (_) {}
+                }
+                // 快速发布：在对应历史版本的 upload/ 下写一条本地履历（记录调用账号等信息）
+                if (quick && syncVerId) {
+                    try {
+                        let target = '';
+                        if (account.type === 'github') target = (account.owner || '') + '/' + (account.repo || '');
+                        else if (account.type === 'server') target = account.deployType === 'local' ? (account.localPath || '') : ((account.host || '') + ':' + (account.remotePath || ''));
+                        else target = account.projectName || account.siteName || '';
+                        const totalBytes = files.reduce((s, f) => s + (f.bytes || 0), 0);
+                        // 记录本次上传后的完整文件状态（path -> mtime/size），供下次快速发布只传修改
+                        const fileState = {};
+                        for (const f of files) {
+                            fileState[f.path] = { mtime: f.mtime || 0, size: f.bytes || 0, always: !!f.always };
+                        }
+                        await Storage.writeVersionUploadRecord(Storage.getCurrentProfileId(), syncVerId, {
+                            at: Date.now(),
+                            mode: 'quick',
+                            ok: true,
+                            files: files.length,
+                            uploaded: toUpload.length,
+                            bytes: totalBytes,
+                            account: { id: account.id, name: account.name, type: account.type, target },
+                            fileState
+                        });
+                    } catch (_e) { console.warn('写入快速发布履历失败', _e); }
                 }
 
                 syncResult.value = result;
@@ -13132,8 +13893,104 @@ sidebarTop: {
                     syncSteps.value[errorStep].detail = e.message;
                 }
                 // 用 syncResult 标记失败状态（模板里通过 success: false 区分）
-                syncResult.value = { success: false, message: e.message };
-                showToast(`发布失败: ${e.message}`, 'error', 5000);
+                const errMsg = (e && e.message) ? e.message : String(e);
+                let toastMsg = `发布失败: ${errMsg}`;
+                if (/bad credentials/i.test(errMsg)) {
+                    toastMsg += '（GitHub Token 无效或已过期，请在“账号管理”中重新生成并确认无多余空格）';
+                }
+                syncResult.value = { success: false, message: toastMsg };
+                showToast(toastMsg, 'error', 5000);
+            }
+        };
+
+        // === 快速发布：不比对哈希，直传全部部署文件（最快路径）===
+        // 本地记录上次快速发布传输的文件状态（修改时间），本次只传修改/新增的文件，不比对哈希
+        const quickPublish = async () => {
+            publishMenuOpen.value = false;
+            if (cfAccounts.value.length === 0) {
+                showToast('请先添加账号', 'warning');
+                modal.settings = true;
+                return;
+            }
+            if (!activeAccountId.value) {
+                showToast('请选择要部署到的账号', 'warning');
+                return;
+            }
+            const account = cfAccounts.value.find(a => a.id === activeAccountId.value);
+            if (!account) {
+                showToast('未找到选中的账号', 'error');
+                return;
+            }
+            // 未保存先静默保存，保证要发布的内容已落盘（不弹窗，保持快速）
+            if (dirty.value) {
+                try {
+                    await persistData({ mark: false, silent: true });
+                    dirty.value = false;
+                } catch (e) {
+                    showToast('保存失败：' + (e.message || e), 'error');
+                    return;
+                }
+            }
+            try {
+                showToast('正在检查发布状态...', 'info', 5000);
+                // 快速发布不比对哈希：跳过哈希计算以提速
+                const files = await collectDeployFiles(undefined, 'fullFiles', { skipHash: true });
+                // 读取该版本下最近一次该账号的快速发布履历（本地记忆：上次传输了哪些文件）
+                const syncVerId = currentEditingVersionId.value || data.currentVersionId || '';
+                let prevState = {};
+                if (syncVerId) {
+                    try {
+                        const records = await Storage.getVersionUploadRecords(Storage.getCurrentProfileId(), syncVerId);
+                        for (let i = records.length - 1; i >= 0; i--) {
+                            const r = records[i];
+                            if (r && r.mode === 'quick' && r.ok && r.account && r.account.id === account.id
+                                && r.fileState && typeof r.fileState === 'object') {
+                                prevState = r.fileState;
+                                break;
+                            }
+                        }
+                    } catch (_e) { prevState = {}; }
+                }
+                const hasPrev = Object.keys(prevState).length > 0;
+                // 不比对哈希：生成文件（always）总是上传；磁盘文件按修改时间/大小判断是否修改
+                const toUpload = files.filter(f => {
+                    if (f.always) return true;
+                    const prev = prevState[f.path];
+                    if (!prev) return true;
+                    return prev.mtime !== (f.mtime || 0) || prev.size !== (f.bytes || 0);
+                });
+                // Vercel/Netlify 为快照部署，必须全量上传（平台机制）
+                const isSnapshotPlatform = account.type === 'vercel' || account.type === 'netlify';
+                let message, note;
+                if (!hasPrev) {
+                    // 首次快速发布：该版本从未对该账号快速发布过，无法对比修改
+                    message = `首次快速发布：将直传全部 ${files.length} 个文件`;
+                    note = '尚未快速发布过该版本，无法对比修改。确认后将直接上传全部文件（不比对哈希）。';
+                } else if (isSnapshotPlatform) {
+                    message = toUpload.length === 0 ? '未检测到修改：文件与上次快速发布一致' : `检测到 ${toUpload.length} 个修改/新增文件`;
+                    note = 'Vercel/Netlify 为快照部署，确认后将上传全部文件。';
+                } else if (toUpload.length === 0) {
+                    message = '未检测到修改：文件与上次快速发布一致';
+                    note = `确认后仍会重新上传全部 ${files.length} 个文件（快速发布不比对哈希）。`;
+                } else {
+                    message = `检测到 ${toUpload.length} 个修改/新增文件，本次只上传这些`;
+                    note = `共 ${files.length} 个文件；未修改的 ${files.length - toUpload.length} 个将跳过（按文件修改时间判断，不比对哈希）。`;
+                }
+                askConfirm({
+                    title: '快速发布确认',
+                    message,
+                    note,
+                    confirmText: '快速发布',
+                    danger: false,
+                    icon: 'fas fa-bolt',
+                    onConfirm: () => {
+                        // 无修改且用户确认“仍要重新上传”时，改为全量上传，避免传 0 个文件
+                        const finalUpload = toUpload.length === 0 ? files : toUpload;
+                        syncToCloudflare(false, null, '', '', true, { files, toUpload: finalUpload });
+                    }
+                });
+            } catch (e) {
+                showToast('检查发布状态失败：' + (e.message || e), 'error');
             }
         };
 
@@ -13663,13 +14520,21 @@ sidebarTop: {
             exportFilePanel, toggleExportFilePanel, resetExportSettings,
             publishMenuOpen, togglePublishMenu, closePublishMenu, publishBtnEl, publishMenuStyle,
             publishMainLabel, onPublishMainClick, openPublishSettings, closePublishSettings, resetPublishSettings,
+            quickPublish,
+            publishConfirmText, confirmPublish, cancelPublish, confirmPublishSave, cancelPublishSave,
             rollbackVersion, deleteVersion, exportVersion, importVersionFile, previewVersion, openVersionLocation,
+            versionUploadRecords,
+            shareModulesList: SHARE_MODULES, shareDraft, shareVersion, confirmShare, confirmImport,
+            exportAllSitesPackage, importAllSitesPackage,
             startVersionDrag, draggingVersionId,
             versionSyncState, openVersionSyncInfo, syncVersion, syncAccountDisplayName, syncAccountState,
             askConfirm, closeConfirmDialog, runConfirmAction, confirmDialog,
             defaultTemplates, currentDefaultTemplate, openTemplateSettings, loadDefaultTemplates,
             selectDefaultTemplate, deleteDefaultTemplate, chooseOtherTemplate, createVersionFromTemplate,
-            openVisitorView, openSettings,
+            openVisitorView, openSettings, passwordDirInfo, passwordDirInput, passwordDirEditing,
+            startEditPasswordDir, cancelEditPasswordDir, savePasswordDirInput, browsePasswordDir,
+            dataDirInfo, dataDirInput, dataDirEditing,
+            startEditDataDir, cancelEditDataDir, saveDataDirInput, browseDataDir,
             openSearchConfig, addSearchTab, removeSearchTab, addSearchEngine, removeSearchEngine,
             openBgConfig, applyBgPreset, applyFirstBgPreset, clearBgPreset, allWallpapers, bgPresetGroups, resolvePreviewUrl, migrateUrl, openDailyTextConfig,
             openWallpaperLibrary, onWallpaperFileChange, addCustomWallpaper, deleteCustomWallpaper,
