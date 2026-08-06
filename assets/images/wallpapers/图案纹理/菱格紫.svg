@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <pattern id="p" width="40" height="40" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect x="14" y="14" width="12" height="12" fill="#b48fc9" opacity="0.4"/></pattern>
+  </defs>
+  <rect width="1920" height="1080" fill="#efe7f2"/>
+  <rect width="1920" height="1080" fill="url(#p)"/></svg>

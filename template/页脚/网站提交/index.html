@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge, chrome=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#f9f9f9" />
+    <title>网站提交 - 模板编辑器</title>
+    <link rel="stylesheet" href="../../../assets/css/block-library.min-5.6.2.css" type="text/css" media="all" />
+    <link rel="stylesheet" href="../../../assets/css/iconfont-3.03029.1.css" type="text/css" media="all" />
+    <link rel="stylesheet" href="../../../assets/css/bootstrap.min-4.3.1.css" type="text/css" media="all" />
+    <link rel="stylesheet" href="../../../assets/css/style-3.03029.1.css" type="text/css" media="all" />
+    <link rel="stylesheet" href="../../../assets/css/custom-style.css" type="text/css" media="all" />
+    <link rel="stylesheet" href="../../../assets/fontawesome-5.15.4/css/all.min.css" type="text/css" />
+
+    <style>
+        body {
+            background: #f5f7fa;
+            padding: 20px 0;
+        }
+
+        .submit-container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 30px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .submit-header {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 30px 25px;
+            border-radius: 8px;
+            color: white;
+        }
+
+        .submit-header h1 {
+            font-size: 28px;
+            margin: 0 0 10px 0;
+            font-weight: 600;
+        }
+
+        .submit-header p {
+            font-size: 15px;
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .success-message i {
+            color: #28a745;
+            margin-right: 6px;
+        }
+
+        .guidelines {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 4px;
+            margin-bottom: 30px;
+        }
+
+        .guidelines h3 {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .guidelines ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .guidelines li {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-group label .required {
+            color: #ff4444;
+            margin-left: 3px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            box-sizing: border-box;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
+        textarea.form-control {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 12px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .submit-btn:hover {
+            background: #45a049;
+        }
+
+        .back-home {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .back-home a {
+            color: #4CAF50;
+            text-decoration: none;
+        }
+
+        .back-home a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .submit-container {
+                margin: 20px;
+                padding: 20px;
+            }
+
+            .submit-header {
+                padding: 25px 20px;
+            }
+
+            .submit-header h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+
+<body class="io-grey-mode">
+    <div class="submit-container" id="commitContainer">
+        <div class="submit-header" id="commitHeader">
+            <h1 data-commit-field="title"><i class="fas fa-paper-plane" data-header-icon></i> 网址提交</h1>
+            <p data-commit-field="subtitle">提交您的优质网站，我们将在审核后收录到网址导航中</p>
+        </div>
+
+        <!-- 板块由 edit.js 动态渲染（板块管理可增删/排序） -->
+        <div id="commitSections"></div>
+
+
+        <button type="submit" class="submit-btn" id="commitSubmitBtn" data-commit-field="buttonText">
+            <i class="fas fa-paper-plane"></i> 提交网站
+        </button>
+
+        <div class="back-home">
+            <a href="javascript:void(0)" onclick="window.scrollTo(0,0);return false"><i class="fas fa-home"></i> <span data-commit-field="backHomeText">返回首页</span></a>
+        </div>
+    </div>
+
+    <script src="../../../assets/js/jquery.min-3.2.1.js"></script>
+    
+    
+    
+    
+    <script id="commitSeed" type="application/json">{"_seedVersion":2,"commit":{"title":"网址提交","subtitle":"提交您的优质网站，我们将在审核后收录到网址导航中","headerIcon":"fas fa-paper-plane","headerBg":"linear-gradient(135deg, #4CAF50 0%, #45a049 100%)","buttonText":"提交网站","buttonIcon":"fas fa-paper-plane","backHomeText":"返回首页","backend":{"type":"","url":"","publicKey":"","serviceId":"","templateId":""},"leftAds":[],"topAds":[],"rightAds":[],"sections":[{"id":"default_contact","type":"text","icon":"fas fa-address-book","title":"联系方式","content":{"richHtml":"<p>如有任何问题，欢迎通过以下方式联系我们：</p><p>📧 邮箱：contact@example.com</p><p>💬 QQ / 微信：123456789</p>"}},{"id":"default_form","type":"form","icon":"fas fa-edit","title":"表单区域","content":{"labels":{"siteName":"网站名称","siteUrl":"网站地址","category":"网站分类","description":"网站描述","keywords":"关键词","email":"联系邮箱","contact":"联系方式"},"placeholders":{"siteName":"请输入网站名称","siteUrl":"https://example.com","description":"简要描述网站的主要功能和特点","keywords":"用逗号分隔，如：工具,在线,免费","email":"用于接收审核结果通知","contact":"QQ、微信或其他联系方式（选填）"}}}]}}</script>
+    <script src="/template/页脚/favicon-editor.js?v=1785715516"></script>
+    <script>
+      // 强制每次打开都重新拉取最新 edit.js，彻底规避 CEF/浏览器缓存导致前端修改不生效
+      document.write('<script src="./edit.js?v=1785705771&_cb=' + Date.now() + '"><\/script>');
+    </script>
+</body>
+
+</html>

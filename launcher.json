@@ -1,0 +1,12 @@
+{
+  "custom_port": 9620,
+  "startup_delay_ms": 0,
+  "auto_open_browser": true,
+  "auto_open_editor": true,
+  "bind_address": "127.0.0.1",
+  "log_to_file": false,
+  "theme": "dark",
+  "minimize_to_tray": false,
+  "default_page": "editor",
+  "show_server_log": true
+}

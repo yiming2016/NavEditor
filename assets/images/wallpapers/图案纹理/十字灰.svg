@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <pattern id="p" width="36" height="36" patternUnits="userSpaceOnUse"><path d="M18 8 V28 M8 18 H28" stroke="#a7afbd" stroke-width="2" opacity="0.45"/></pattern>
+  </defs>
+  <rect width="1920" height="1080" fill="#eceef1"/>
+  <rect width="1920" height="1080" fill="url(#p)"/></svg>

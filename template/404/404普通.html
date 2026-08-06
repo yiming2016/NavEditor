@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>404 - 页面离家出走了</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    background: linear-gradient(135deg, #0f172a 0%, #312e81 60%, #6d28d9 100%);
+    color: #e2e8f0;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 24px;
+  }
+  .card {
+    background: rgba(255,255,255,0.06);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 20px;
+    padding: 48px 40px;
+    max-width: 520px; width: 100%;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  .emoji { font-size: 72px; line-height: 1; margin-bottom: 8px; animation: float 3s ease-in-out infinite; }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+  .code { font-size: 88px; font-weight: 900; letter-spacing: 4px;
+    background: linear-gradient(90deg,#a78bfa,#f472b6,#38bdf8);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    margin: 4px 0 12px; }
+  h1 { font-size: 22px; margin-bottom: 12px; font-weight: 700; }
+  p { font-size: 14px; color: #cbd5e1; line-height: 1.7; margin-bottom: 8px; }
+  .hint { font-size: 12px; color: #94a3b8; margin-top: 18px; }
+  .home-btn {
+    display: inline-block; margin-top: 22px; padding: 12px 28px;
+    background: linear-gradient(90deg,#6366f1,#a855f7);
+    color: #fff; text-decoration: none; border-radius: 999px;
+    font-size: 14px; font-weight: 600; transition: transform .15s, box-shadow .15s;
+  }
+  .home-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(168,85,247,0.5); }
+  .planet { font-size: 14px; margin-top: 18px; opacity: .7; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="emoji">🛸</div>
+    <div class="code">404</div>
+    <h1>页面离家出走了</h1>
+    <p>你访问的地址不存在，也许它被外星人绑架了，<br>也许它本来就只是个传说。</p>
+    <p class="planet">🌌 在这片星海里，只有正确的坐标才能带你回家。</p>
+    <a class="home-btn" href="/">返回首页</a>
+    <div class="hint">如果这是误报，请检查链接是否完整（区分大小写与斜杠）。</div>
+  </div>
+</body>
+</html>

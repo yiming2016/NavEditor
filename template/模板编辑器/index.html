@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<title>模板编辑器 - NavEditor</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#f5f7fa;color:#333;display:flex;flex-direction:column;min-height:100vh}
+.topbar{display:none}
+.panel-center .title-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#fff;border-bottom:1px solid #e0e0e0;margin:-16px -16px 12px}
+.panel-center .title-bar h2{font-size:16px;color:#333;white-space:nowrap}
+.panel-center .title-bar .save-btn2{padding:6px 16px;background:#27ae60;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px;white-space:nowrap;margin-left:auto}
+.panel-center .title-bar .save-btn2:hover{background:#219a52}
+.panel-center .title-bar .tpl-path{font-size:12px;color:#999;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 模块库预览开关 */
+.panel-title .pv-toggle2{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#999;font-weight:400;margin-left:12px;cursor:pointer;position:relative;top:5px}
+.panel-title .pv-toggle2 .pv-sw2{width:32px;height:18px;border-radius:9px;background:#ccc;position:relative;transition:background .2s}
+.panel-title .pv-toggle2 .pv-sw2::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;background:#fff;border-radius:50%;transition:left .2s}
+.panel-title .pv-toggle2.on .pv-sw2{background:#667eea}
+.panel-title .pv-toggle2.on .pv-sw2::after{left:16px}
+/* 悬停预览弹窗 */
+.mod-popup{position:fixed;z-index:999;background:#fff;border-radius:10px;border:1px solid #ddd;box-shadow:0 8px 32px rgba(0,0,0,.18);padding:14px;width:280px;pointer-events:none;display:none}
+.mod-popup .pp-name{font-size:13px;font-weight:700;color:#333;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #eee}
+.mod-popup .pp-preview{font-size:12px;color:#555}
+/* 配置面板 */
+.mcp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:998;display:none}
+.mcp-overlay.show{display:block}
+.mod-config-panel{position:fixed;right:0;top:0;bottom:0;width:380px;background:#fff;z-index:999;box-shadow:-4px 0 20px rgba(0,0,0,.15);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s}
+.mod-config-panel.show{transform:translateX(0)}
+.mcp-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #eee}
+.mcp-title{font-size:15px;font-weight:700}
+.mcp-close{width:28px;height:28px;border-radius:50%;border:none;background:#f0f0f0;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+.mcp-close:hover{background:#e0e0e0}
+.mcp-body{flex:1;overflow-y:auto;padding:16px 18px}
+.mcp-field{margin-bottom:14px}
+.mcp-label{display:block;font-size:12px;font-weight:600;color:#666;margin-bottom:4px}
+.mcp-input{width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box}
+.mcp-input:focus{border-color:#667eea;outline:none}
+.mcp-inline{display:flex;align-items:center;gap:8px}
+.mcp-title-row{display:flex;align-items:center;justify-content:space-between}
+.mcp-inline-label{font-size:12px;color:#666;white-space:nowrap}
+.mcp-span-btns{display:flex;gap:4px}
+.mcp-span-btn{width:32px;height:32px;border:1px solid #ddd;background:#fff;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;color:#999;display:flex;align-items:center;justify-content:center}
+.mcp-span-btn:hover{border-color:#667eea;color:#667eea}
+.mcp-span-btn.active{background:#667eea;color:#fff;border-color:#667eea}
+.mcp-fmt-bar{display:flex;align-items:center;gap:2px;margin-bottom:4px}
+.mcp-fmt-btn{width:26px;height:24px;border:1px solid #ddd;background:#fff;border-radius:3px;cursor:pointer;font-size:11px;color:#666;display:flex;align-items:center;justify-content:center}
+.mcp-fmt-btn:hover{border-color:#667eea;color:#667eea}
+.mcp-fmt-sep{width:1px;height:16px;background:#ddd;margin:0 4px}
+.mcp-fmt-sz-input{width:40px;height:24px;border:1px solid #ddd;border-radius:3px;font-size:11px;text-align:center;padding:0 2px}
+.mcp-fmt-sz-input:focus{border-color:#667eea;outline:none}
+.mcp-rich-input{min-height:32px;padding:6px 8px;font-size:13px;line-height:1.4;overflow-y:auto}
+.mcp-rich-input:empty::before{content:attr(placeholder);color:#ccc}
+.mcp-rich-input[placeholder]:empty::before{content:attr(placeholder);color:#ccc}
+.mcp-select{width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;background:#fff;box-sizing:border-box}
+.mcp-check{display:flex;align-items:center;gap:8px;font-size:13px;color:#555}
+.mcp-check input{width:16px;height:16px}
+.mcp-foot{padding:14px 18px;border-top:1px solid #eee}
+.mcp-save{width:100%;padding:10px;background:#667eea;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;font-weight:600}
+.mcp-save:hover{background:#5a6fd6}
+.main{display:flex;flex:1;overflow:hidden}
+.panel{padding:16px;overflow-y:auto}
+.panel-left{width:230px;background:#fff;border-right:1px solid #e0e0e0;flex-shrink:0}
+.panel-center{width:340px;background:#fafbfc;border-right:1px solid #e0e0e0;flex-shrink:0}
+.panel-right{flex:1;background:#fff;display:flex;flex-direction:column;overflow:hidden}
+.panel-title{font-size:15px;font-weight:700;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #667eea;color:#333}
+.mod-cat{margin-bottom:12px}
+.mod-cat-name{font-size:12px;font-weight:600;color:#999;margin-bottom:6px}
+.mod-grid{display:flex;flex-wrap:wrap;gap:5px}
+.mod-chip{padding:4px 10px;border-radius:14px;font-size:11px;background:#f5f5f5;color:#555;cursor:pointer;border:1px solid #e8e8e8;transition:all .15s;white-space:nowrap}
+.mod-chip:hover{background:#667eea;color:#fff;border-color:#667eea}
+.mod-chip.added{background:#d4edda;color:#155724;border-color:#c3e6cb;cursor:default;opacity:.7}
+.form-group{margin-bottom:12px}
+.form-label{font-size:12px;font-weight:600;color:#666;margin-bottom:3px;display:flex;align-items:center;gap:8px}
+.align-btns{display:inline-flex;gap:2px;margin-left:4px}
+.align-btn{width:22px;height:22px;border:1px solid #ddd;background:#fff;border-radius:3px;cursor:pointer;font-size:10px;color:#999;display:flex;align-items:center;justify-content:center;padding:0}
+.align-btn:hover{border-color:#667eea;color:#667eea}
+.align-btn.active{background:#667eea;color:#fff;border-color:#667eea}
+.form-input{width:100%;padding:6px 10px;border:1px solid #ddd;border-radius:5px;font-size:13px;transition:border .2s}
+.form-input:focus{border-color:#667eea;outline:none;box-shadow:0 0 0 2px rgba(102,126,234,.12)}
+.form-select{width:100%;padding:6px 10px;border:1px solid #ddd;border-radius:5px;font-size:13px;background:#fff}
+.form-textarea{width:100%;padding:6px 10px;border:1px solid #ddd;border-radius:5px;font-size:12px;resize:vertical;min-height:70px;font-family:monospace}
+.sel-modules{display:flex;flex-wrap:wrap;gap:5px;padding:10px;background:#fff;border:1px solid #e8e8e8;border-radius:6px;min-height:50px}
+.sel-mod{padding:3px 8px;border-radius:12px;font-size:11px;background:#e8f5e9;color:#27ae60;border:1px solid #c8e6c9;display:flex;align-items:center;gap:5px}
+.sel-mod .rm{cursor:pointer;font-weight:bold;opacity:.5;font-size:13px;line-height:1}
+.sel-mod .rm:hover{opacity:1;color:#e74c3c}
+.empty-mod{color:#ccc;font-size:11px;padding:6px}
+.sm-chip{padding:4px 10px;border-radius:12px;font-size:11px;background:#eff6ff;color:#3b82f6;border:1px solid #c4d9f2;display:inline-flex;align-items:center;gap:6px;cursor:pointer;transition:all .15s}
+.sm-chip:hover{background:#dbeafe;border-color:#3b82f6}
+.sm-chip .sm-name{font-weight:600}
+.sm-chip .sm-summary{color:#888;font-size:10px;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sm-chip .sm-gear{opacity:.4;font-size:11px}
+.sm-chip:hover .sm-gear{opacity:1}
+.sm-chip .rm{cursor:pointer;font-weight:bold;opacity:.4;font-size:13px;line-height:1;margin-left:-2px}
+.sm-chip .rm:hover{opacity:1;color:#e74c3c}
+.sm-chip:last-child .rm{margin-left:0}
+.icon-preview{width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;flex-shrink:0}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:16px 32px;border-radius:10px;font-size:16px;font-weight:700;color:#fff;z-index:110;opacity:0;transition:opacity .3s;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,.25)}
+.toast.show{opacity:1}
+.toast.ok{background:#27ae60}
+.toast.err{background:#e74c3c}
+.toast.warn{background:#f39c12}
+/* 确认弹窗 */
+.cfm-ov{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:center;justify-content:center}
+.cfm-box{background:#fff;border-radius:12px;padding:28px;max-width:400px;width:90%;box-shadow:0 12px 48px rgba(0,0,0,.25);text-align:center}
+.cfm-box .cfm-icon{font-size:40px;margin-bottom:12px}
+.cfm-box .cfm-title{font-size:18px;font-weight:700;color:#333;margin-bottom:8px}
+.cfm-box .cfm-desc{font-size:13px;color:#999;margin-bottom:20px}
+.cfm-box .cfm-btns{display:flex;gap:12px;justify-content:center}
+.cfm-box .cfm-btns button{padding:10px 28px;border-radius:8px;font-size:14px;cursor:pointer;border:none;font-weight:600}
+.cfm-box .cfm-ok{background:#27ae60;color:#fff}
+.cfm-box .cfm-ok:hover{background:#219a52}
+.cfm-box .cfm-cancel{background:#f0f2f7;color:#666}
+.cfm-box .cfm-cancel:hover{background:#e0e0e0}
+.ic-opt{width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;font-size:20px;color:#666;transition:all .15s;border:2px solid transparent}
+.ic-opt:hover{background:#f0f2ff;color:#667eea;border-color:#667eea}
+.ic-opt.sel{background:#667eea;color:#fff;border-color:#667eea}
+/* 预览区 */
+.pv-wrap{padding:12px 20px 20px;flex:1;overflow-y:auto}
+.pv-card{background:#fff;border-radius:10px;border:1px solid #e0e0e0;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+.pv-head{display:flex;align-items:center;gap:10px;padding:14px 18px;background:#fafbfc;border-bottom:1px solid #f0f0f0}
+.pv-icon{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;flex-shrink:0}
+.pv-hinfo{flex:1;min-width:0}
+.pv-title{font-size:16px;font-weight:700;color:#333}
+.pv-type-badge{display:inline-block;padding:2px 8px;border-radius:3px;font-size:10px;margin-top:3px}
+.pv-body{padding:16px 18px}
+.pv-mod-tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px dashed #e8e8e8}
+.pv-mod-tag{padding:2px 8px;border-radius:10px;font-size:10px;background:#f0f4ff;color:#667eea}
+.pv-content{font-size:13px;line-height:1.7;color:#555}
+.pv-content p{margin-bottom:8px}
+.pv-content h1,.pv-content h2,.pv-content h3{font-size:15px;font-weight:700;margin:10px 0 6px;color:#333}
+.pv-content ul,.pv-content ol{padding-left:20px;margin-bottom:8px}
+.pv-content li{margin-bottom:3px}
+.pv-content a{color:#667eea}
+.pv-content blockquote{border-left:3px solid #667eea;padding:6px 12px;background:#f8f9ff;margin:8px 0;color:#666;font-style:italic}
+.pv-content code{background:#2d2d2d;color:#f8c040;padding:2px 6px;border-radius:3px;font-size:12px}
+.pv-content pre{background:#2d2d2d;color:#e0e0e0;padding:12px;border-radius:6px;overflow:auto;font-size:12px;margin:8px 0}
+.pv-skills{display:flex;flex-wrap:wrap;gap:6px}
+.pv-skill-tag{padding:4px 12px;border-radius:18px;font-size:12px;color:#fff;font-weight:500}
+.pv-contacts{font-size:13px;line-height:2;color:#555}
+.pv-contacts .ct-line{display:flex;align-items:center;gap:8px}
+.pv-contacts .ct-icon{width:20px;text-align:center;color:#667eea}
+.pv-form-fields{display:flex;flex-direction:column;gap:10px}
+.pv-field{padding:8px 12px;border:1px solid #e0e0e0;border-radius:6px;background:#fafbfc;font-size:12px;color:#999}
+.pv-field.req{border-color:#e74c3c;background:#fff5f5}
+.pv-success{background:#d4edda;border:1px solid #c3e6cb;border-radius:8px;padding:16px;color:#155724;font-size:13px;text-align:center}
+.pv-success .pv-check{font-size:36px;margin-bottom:8px}
+.pv-guidelines{font-size:13px;line-height:1.8;color:#555}
+.pv-guidelines .gl-item{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid #f0f0f0}
+.pv-guidelines .gl-num{width:24px;height:24px;border-radius:50%;background:#667eea;color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pv-categories{display:flex;flex-wrap:wrap;gap:8px}
+.pv-cat-opt{padding:8px 16px;border:1px solid #ddd;border-radius:20px;font-size:13px;color:#555;cursor:default;transition:.2s}
+.pv-cat-opt:hover{border-color:#667eea;color:#667eea;background:#f8f9ff}
+.pv-empty{text-align:center;padding:40px;color:#ccc}
+.pv-empty .pv-empty-icon{font-size:40px;margin-bottom:12px}
+@keyframes pvFade{from{opacity:.6}to{opacity:1}}
+.pv-card{animation:pvFade .3s}
+/* 模块渲染 - 4列网格，每模块独立设宽 */
+.pv-mod-render{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:8px 0}
+.pv-mod-item{grid-column:span 4;background:#fff;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;transition:box-shadow .15s;cursor:default}
+.pv-mod-item:hover{box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.pv-mod-item.span1{grid-column:span 1}
+.pv-mod-item.span2{grid-column:span 2}
+.pv-mod-item.span3{grid-column:span 3}
+.pv-mod-item.span4{grid-column:span 4}
+.pv-mod-item .mi-handle{display:flex;align-items:center;padding:0 10px;gap:8px;height:26px;background:#f5f6f8;border-bottom:1px solid #eee;cursor:grab;user-select:none}
+.pv-mod-item .mi-handle:active{cursor:grabbing}
+.pv-mod-item .mi-handle .mi-grip{color:#bbb;font-size:14px;line-height:1;cursor:pointer}
+.pv-mod-item .mi-handle .mi-grip:hover{color:#667eea}
+.pv-mod-item .mi-handle .mi-lbl{font-size:11px;color:#999;font-weight:500;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pv-mod-item .mi-handle .mi-wopts{display:flex;gap:3px;border:1px solid #e0e0e0;border-radius:4px;overflow:hidden}
+.pv-mod-item .mi-handle .mi-wbtn{font-size:12px;font-weight:600;color:#aaa;cursor:pointer;padding:2px 8px;background:#fff;border:none;border-right:1px solid #e0e0e0;min-width:24px;text-align:center;transition:all .15s}
+.pv-mod-item .mi-handle .mi-wbtn:last-child{border-right:none}
+.pv-mod-item .mi-handle .mi-wbtn:hover{background:#f0f2ff;color:#667eea}
+.pv-mod-item .mi-handle .mi-wbtn.on{background:#667eea;color:#fff}
+.pv-mod-item .mi-handle .mi-rm{font-size:18px;color:#e74c3c;cursor:pointer;line-height:1;padding:0 4px;margin-left:auto}
+.pv-mod-item .mi-handle .mi-rm:hover{color:#e74c3c}
+.pv-mod-item .mi-body{padding:14px 16px}
+.pv-mod-item.dragging{opacity:.5;z-index:10;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+/* 全尺寸模块渲染（替换旧的 mi-* 微型样式） */
+.mi-input{width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-size:14px;color:#aaa;background:#fff;pointer-events:none}
+.mi-input.req{border-color:#e74c3c;background:#fff5f5}
+.mi-textarea{width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-size:14px;color:#aaa;resize:vertical;min-height:80px;background:#fff;pointer-events:none}
+.mi-md{width:100%;padding:12px 16px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:monospace;color:#666;background:#fffef5;line-height:1.6;pointer-events:none}
+.mi-select{width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-size:14px;color:#888;background:#fff;pointer-events:none}
+.mi-date{width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:6px;font-size:14px;color:#aaa;pointer-events:none}
+.mi-color{width:100%;height:44px;border:1px solid #ddd;border-radius:6px;pointer-events:none}
+.mi-toggle{display:flex;align-items:center;gap:10px}
+.mi-toggle-track{width:48px;height:26px;border-radius:13px;background:#667eea;position:relative}
+.mi-toggle-track::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%}
+.mi-toggle-lbl{font-size:14px;color:#555}
+.mi-slider-wrap{padding:4px 0}
+.mi-slider{width:100%;height:6px;border-radius:3px;background:#e0e0e0;position:relative}
+.mi-slider::after{content:'';position:absolute;top:-6px;left:65%;width:18px;height:18px;background:#667eea;border-radius:50%}
+.mi-slider-lbl{font-size:12px;color:#999;margin-top:6px;text-align:right}
+.mi-stars{color:#f0c040;font-size:24px;letter-spacing:4px}
+.mi-tags{display:flex;gap:8px;flex-wrap:wrap}
+.mi-tag{padding:6px 14px;background:#f0f2ff;color:#667eea;border-radius:16px;font-size:13px;border:1px solid #d0d5f0}
+.mi-search-wrap{position:relative}
+.mi-search-wrap::before{content:'🔍';position:absolute;left:14px;top:10px;font-size:14px;z-index:1}
+.mi-search-wrap .mi-input{padding-left:36px}
+.mi-radio-grp{display:flex;flex-direction:column;gap:8px}
+.mi-radio-item{display:flex;align-items:center;gap:10px;font-size:14px;color:#555}
+.mi-radio-dot{width:20px;height:20px;border-radius:50%;border:2px solid #667eea;display:flex;align-items:center;justify-content:center}
+.mi-radio-dot::after{content:'';width:10px;height:10px;border-radius:50%;background:#667eea}
+.mi-checkbox-grp{display:flex;flex-direction:column;gap:8px}
+.mi-checkbox-item{display:flex;align-items:center;gap:10px;font-size:14px;color:#555}
+.mi-checkbox-box{width:20px;height:20px;border-radius:4px;border:2px solid #667eea;display:flex;align-items:center;justify-content:center;background:#667eea;color:#fff;font-size:12px}
+.mi-icon-box{display:flex;align-items:center;gap:12px}
+.mi-icon-sm{width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px}
+.mi-icon-lbl{font-size:16px;font-weight:600;color:#333}
+.mi-skill-tags{display:flex;gap:8px;flex-wrap:wrap}
+.mi-skill-tag{padding:8px 18px;border-radius:8px;font-size:13px;color:#fff;font-weight:500}
+.mi-contact-text{font-size:14px;color:#555;line-height:1.8}
+.mi-contact-text .ct-row{display:flex;align-items:center;gap:10px;padding:6px 0}
+.mi-contact-text .ct-ic{width:24px;text-align:center;font-size:16px}
+.mi-avatar-wrap{display:flex;align-items:center;gap:14px}
+.mi-avatar{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#f093fb,#f5576c);display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;font-weight:bold}
+.mi-avatar-name{font-size:16px;font-weight:600;color:#333}
+.mi-badge{padding:4px 14px;border-radius:12px;font-size:13px;color:#fff;background:#e74c3c;display:inline-block}
+.mi-progress-wrap{padding:4px 0}
+.mi-progress{width:100%;height:10px;border-radius:5px;background:#e8e8e8;overflow:hidden}
+.mi-progress-bar{height:100%;width:65%;background:linear-gradient(90deg,#667eea,#764ba2);border-radius:5px;transition:width .5s}
+.mi-progress-lbl{font-size:12px;color:#999;margin-top:4px;display:flex;justify-content:space-between}
+.mi-tl{display:flex;flex-direction:column;gap:12px;padding-left:8px}
+.mi-tl-item{display:flex;gap:12px;align-items:flex-start;font-size:14px;color:#555;min-height:32px}
+.mi-tl-dot{width:12px;height:12px;border-radius:50%;background:#667eea;flex-shrink:0;margin-top:4px}
+.mi-tl-dot.done{background:#27ae60}
+.mi-tl-line{width:2px;flex:1;background:#e0e0e0;margin-left:5px;min-height:20px}
+.mi-quote{border-left:4px solid #667eea;padding:12px 18px;background:#f8f9ff;font-size:14px;color:#666;font-style:italic;border-radius:0 8px 8px 0}
+.mi-alert{padding:12px 16px;border-radius:8px;font-size:14px;display:flex;align-items:center;gap:10px}
+.mi-alert.ok{background:#d4edda;color:#155724;border:1px solid #c3e6cb}
+.mi-alert.warn{background:#fff3cd;color:#856404;border:1px solid #ffeaa7}
+.mi-empty{text-align:center;padding:20px;font-size:14px;color:#ccc}
+.mi-empty-icon{font-size:36px;margin-bottom:8px}
+.mi-tabs{display:flex;border-bottom:2px solid #eee}
+.mi-tab{padding:10px 20px;font-size:14px;color:#999;cursor:default;border-bottom:3px solid transparent;margin-bottom:-2px}
+.mi-tab.on{color:#667eea;border-bottom-color:#667eea;font-weight:600}
+.mi-accordion{border:1px solid #e0e0e0;border-radius:8px;overflow:hidden}
+.mi-acc-head{padding:12px 16px;background:#fafbfc;font-size:14px;font-weight:600;display:flex;justify-content:space-between;border-bottom:1px solid #e0e0e0}
+.mi-acc-body{padding:14px 16px;font-size:13px;color:#999}
+.mi-steps{display:flex;align-items:center;justify-content:center;gap:0}
+.mi-step-wrap{display:flex;align-items:center;gap:0}
+.mi-step-num{width:32px;height:32px;border-radius:50%;background:#667eea;color:#fff;font-size:14px;display:flex;align-items:center;justify-content:center;font-weight:600}
+.mi-step-done .mi-step-num{background:#27ae60}
+.mi-step-line{width:40px;height:3px;background:#e0e0e0}
+.mi-step-label{font-size:11px;color:#999;text-align:center;margin-top:4px}
+.mi-divider{display:flex;align-items:center;gap:14px;font-size:13px;color:#ccc}
+.mi-divider::before,.mi-divider::after{content:'';flex:1;height:1px;background:#e0e0e0}
+.mi-upload{padding:28px;border:2px dashed #ddd;border-radius:10px;text-align:center;font-size:14px;color:#ccc;transition:.2s}
+.mi-upload:hover{border-color:#667eea;color:#667eea}
+.mi-code{padding:14px 18px;background:#2d2d2d;color:#e0e0e0;font-family:monospace;font-size:13px;border-radius:8px;overflow:auto;line-height:1.7}
+.mi-video{width:100%;min-height:160px;background:#000;border-radius:8px;display:flex;align-items:center;justify-content:center}
+.mi-video-btn{width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;color:#667eea;font-size:22px}
+.mi-table{width:100%;border-collapse:collapse;font-size:13px}
+.mi-table th{background:#f5f6f8;padding:10px 14px;text-align:left;border:1px solid #e0e0e0;font-weight:600;color:#555}
+.mi-table td{padding:10px 14px;border:1px solid #e0e0e0;color:#888}
+.mi-pagination{display:flex;gap:6px;justify-content:center}
+.mi-page{padding:8px 14px;border:1px solid #ddd;border-radius:6px;font-size:13px;color:#666;background:#fff;cursor:default}
+.mi-page.cur{background:#667eea;color:#fff;border-color:#667eea}
+@media(max-width:1000px){.main{flex-direction:column}.panel-left,.panel-center{width:100%;border-right:none;max-height:30vh}.panel-right{min-height:50vh}}
+/* 只读预览模式（模版库“查看”按钮进入） */
+body.view-mode .topbar{display:flex;align-items:center;padding:12px 20px;background:#fff;border-bottom:1px solid #e0e0e0}
+body.view-mode .topbar::before{content:'模板预览（只读）';font-size:16px;font-weight:700;color:#333;margin-right:10px}
+body.view-mode .panel-left,body.view-mode .panel-center{display:none!important}
+body.view-mode .panel-right{width:100%;max-width:820px;margin:0 auto;background:transparent}
+body.view-mode .pv-wrap{padding-top:16px}
+body.view-mode .pv-mod-item .mi-handle .mi-grip,
+body.view-mode .pv-mod-item .mi-handle .mi-wopts,
+body.view-mode .pv-mod-item .mi-handle .mi-rm{display:none!important}
+body.view-mode .pv-mod-item .mi-handle{pointer-events:none}
+/* 实际样式模式（编辑器内切换） */
+body.live-mode .pv-mod-item .mi-handle{display:none!important}
+body.live-mode .pv-mod-item{border:none;background:transparent;box-shadow:none;padding:0}
+body.live-mode .pv-body{padding:0}
+body.live-mode .pv-card{border:none;background:transparent;box-shadow:none;border-radius:0;padding:0}
+body.live-mode .pv-mod-render{display:block}
+</style>
+</head>
+<body>
+<div class="topbar"></div>
+<div class="main">
+  <div class="panel panel-left">
+    <div class="panel-title">📦 模块库<span class="pv-toggle2" id="pvToggle" onclick="toggleModPopup()"><span class="pv-sw2"></span>预览</span></div>
+    <div id="modPalette"></div>
+  </div>
+  <div class="panel panel-center">
+    <div class="title-bar">
+      <h2>模板编辑器</h2>
+      <span class="tpl-path" id="tplInfo"></span>
+      <button class="save-btn2" onclick="saveTemplate()">保存</button>
+    </div>
+    <div class="panel-title" style="margin-bottom:12px;display:flex;align-items:center;gap:8px">⚙️ 模板配置<span class="pv-toggle2" id="liveToggle" onclick="toggleLivePreview()"><span class="pv-sw2"></span>实际样式</span></div>
+    <div class="form-group">
+      <label class="form-label">模板名称</label>
+      <input class="form-input" id="tplName" placeholder="给模板起个名字" oninput="renderPreview()">
+    </div>
+    <div class="form-group">
+      <label class="form-label">图标 &amp; 标题 <span class="align-btns"><button class="align-btn" data-align="left" title="居左">◀</button><button class="align-btn" data-align="center" title="居中">◼</button><button class="align-btn" data-align="right" title="居右">▶</button></span></label>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="icon-preview" id="iconPreview" onclick="pickIcon()" title="点击更换图标" style="cursor:pointer"><i id="iconPreviewIcon" class="fas fa-star"></i></div>
+        <input class="form-input" id="tplTitle" placeholder="板块标题" oninput="renderPreview()" style="flex:1">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">选中模块 <span style="color:#999;font-weight:400">（从左侧模块库点击添加）</span></label>
+      <div class="sel-modules" id="selModules"><span class="empty-mod">暂无选中模块</span></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">内容数据（JSON）</label>
+      <textarea class="form-textarea" id="tplContent" placeholder='{"items":[],"richHtml":""}' oninput="renderPreview()"></textarea>
+    </div>
+  </div>
+  <div class="panel panel-right">
+    <div class="pv-wrap" id="previewArea" style="padding-top:12px">
+      <div class="pv-empty"><div class="pv-empty-icon">📄</div><p style="font-size:13px;color:#bbb">编辑左侧配置，预览实时生效</p></div>
+    </div>
+  </div>
+</div>
+<div class="mod-popup" id="modPopup"><div class="pp-name"></div><div class="pp-preview"></div></div>
+<div class="mod-config-panel" id="modConfig">
+<div class="mcp-head"><span class="mcp-title">模块设置</span><span class="mcp-close" onclick="closeModConfig()">✕</span></div>
+<div class="mcp-body" id="mcpBody"></div>
+</div>
+<div class="mcp-overlay" id="mcpOverlay" onclick="closeModConfig()"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+var COMBO_KEY='nav_combo_library';
+var LABELS_KEY='nav_type_labels';
+var ALL_LABELS={text:'文本段落',skills:'技能卡片',contacts:'联系方式',success:'成功提示',guidelines:'须知列表',categories:'分类选项',form:'表单区域'};
+(function(){try{var s=localStorage.getItem(LABELS_KEY);if(s){var sl=JSON.parse(s);Object.keys(sl).forEach(function(k){ALL_LABELS[k]=sl[k];});}}catch(_){}})();
+
+var moduleData=[
+  {cat:'⌨️ 访客输入',modules:['单行输入框','多行输入框','选择器','日期时间','文件上传']},
+  {cat:'🎮 交互控件',modules:['开关切换','范围滑块','评分组件','颜色选择','搜索框']},
+  {cat:'📋 内容展示',modules:['富文本段落','图标标题组','头像名片','标签组','进度条','数字徽章','引用卡片','联系方式卡','媒体展示','提示信息','代码块','统计数据','时间线','空状态']},
+  {cat:'📐 布局结构',modules:['选项卡切换','折叠面板','步骤进度条','分割线','间距占位','分栏布局','面包屑导航','锚点导航']},
+  {cat:'⚙️ 功能增强',modules:['数据表格','分页导航','倒计时','二维码','地图嵌入','社交分享','音频播放','轮播图']}
+];
+var SKILL_COLORS=['#667eea','#27ae60','#e74c3c','#f39c12','#3498db','#9b59b6','#1abc9c','#e67e22'];
+var catIdx,itemIdx,item;
+var params=new URLSearchParams(location.search);
+catIdx=parseInt(params.get('cat'));
+itemIdx=parseInt(params.get('item'));
+if(isNaN(catIdx)||isNaN(itemIdx)){document.body.innerHTML='<div style="padding:40px;text-align:center;color:#999"><p>缺少模板参数</p><p style="font-size:12px">请从模版库页面打开</p></div>';throw new Error('missing params')}
+
+if(params.get('view')==='1'){document.body.classList.add('view-mode');}
+
+function renderPalette(){
+  var html='';
+  moduleData.forEach(function(grp){
+    html+='<div class="mod-cat"><div class="mod-cat-name">'+grp.cat+'</div><div class="mod-grid">';
+    grp.modules.forEach(function(m){
+      var added=item.modules&&item.modules.some(function(x){return (typeof x==='string'?x:x.name)===m});
+      html+='<span class="mod-chip'+(added?' added':'')+'" data-mod="'+m.replace(/"/g,'&quot;')+'">'+m+'</span>';
+    });
+    html+='</div></div>';
+  });
+  document.getElementById('modPalette').innerHTML=html;
+}
+function renderSelModules(){
+  var mods=item.modules||[];
+  var html='';
+  if(mods.length===0){html='<span class="empty-mod">暂无选中模块，点击左侧模块添加</span>'}
+  else{mods.forEach(function(m,mi){
+    var name=typeof m==='string'?m:m.name,cfg=m.config||{};
+    var summary='';
+    if(cfg.label) summary=cfg.label;
+    else if(cfg.tags) summary=cfg.tags;
+    else if(cfg.text) summary=cfg.text;
+    else if(cfg.num) summary=cfg.num;
+    html+='<span class="sm-chip" data-sm-idx="'+mi+'" title="点击设置"><span class="sm-name">'+name.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span>'+(summary?'<span class="sm-summary">'+summary.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span>':'')+'<span class="sm-gear">⚙</span><span class="rm" data-rm="'+mi+'">×</span></span>';
+  })}
+  document.getElementById('selModules').innerHTML=html;
+  // 绑定删除
+  document.querySelectorAll('[data-rm]').forEach(function(el){el.onclick=function(e){e.stopPropagation();var idx=parseInt(el.getAttribute('data-rm'));item.modules.splice(idx,1);if(item._pvCols) item._pvCols.splice(idx,1);refreshPalette()}});
+}
+function refreshPalette(){renderPalette();renderSelModules();renderPreview()}
+
+var editingModIdx=-1;
+function openModConfig(idx){
+  editingModIdx=idx;
+  var mod=item.modules[idx]; if(!mod)return;
+  if(!mod.config) mod.config={};
+  var name=typeof mod==='string'?mod:mod.name;
+  document.getElementById('modConfig').classList.add('show');
+  document.getElementById('mcpOverlay').classList.add('show');
+  renderConfigFields(name,mod.config);
+  // 自动监听设置面板所有输入变化
+  var body=document.getElementById('mcpBody');
+  body.oninput=function(e){if(e.target.hasAttribute('data-cfg')||e.target.closest('[data-cfg]'))livePreview()};
+  body.onchange=function(e){if(e.target.hasAttribute('data-cfg')||e.target.closest('[data-cfg]'))livePreview()};
+}
+function closeModConfig(){
+  // 关闭时保存
+  if(editingModIdx>=0){saveCurrentModConfig();saveCombo(d)}
+  editingModIdx=-1;document.getElementById('modConfig').classList.remove('show');document.getElementById('mcpOverlay').classList.remove('show')
+}
+function saveCurrentModConfig(){
+  if(editingModIdx<0)return;
+  var mod=item.modules[editingModIdx];if(!mod)return;
+  if(!mod.config) mod.config={};
+  document.getElementById('mcpBody').querySelectorAll('[data-cfg]').forEach(function(el){
+    var key=el.getAttribute('data-cfg'),val;
+    if(el.tagName==='BUTTON'){if(!el.classList.contains('active'))return;key=el.getAttribute('data-cfg');val=parseInt(el.getAttribute('data-val'))}
+    else if(el.id==='cfgLabelRich'){key='label';val=el.innerHTML}
+    else if(el.id==='cfgFontSize'){key='fontSize';val=parseInt(el.value)||14}
+    else if(el.type==='checkbox')val=el.checked;
+    else val=el.value;
+    if(key==='options'&&typeof val==='string')val=val.split('\n').filter(Boolean);
+    mod.config[key]=val;
+  });
+}
+function livePreview(){
+  if(editingModIdx<0)return;
+  saveCurrentModConfig();
+  saveCombo(d);
+  renderPreview();
+}
+function formatLabel(cmd){
+  var el=document.getElementById('cfgLabelRich');el.focus();
+  if(cmd==='bold')document.execCommand('bold');
+  else if(cmd==='italic')document.execCommand('italic');
+  else if(cmd==='fontSize'){var sz=document.getElementById('cfgFontSize').value+'px';document.execCommand('fontSize',false,'7');var fts=document.querySelectorAll('font[size="7"]');for(var i=0;i<fts.length;i++){var s=fts[i];if(s.parentNode===el||el.contains(s)){var sp=document.createElement('span');sp.style.fontSize=sz;sp.innerHTML=s.innerHTML;s.parentNode.replaceChild(sp,s)}}livePreview()}
+  else if(cmd==='link'){var url=prompt('链接地址');if(url){document.execCommand('createLink',false,url);livePreview()}}
+  else if(cmd==='left'){document.execCommand('justifyLeft');livePreview()}
+  else if(cmd==='center'){document.execCommand('justifyCenter');livePreview()}
+  else if(cmd==='right'){document.execCommand('justifyRight');livePreview()}
+}
+function setSpanBtn(btn){
+  var val=parseInt(btn.getAttribute('data-val'));
+  btn.parentNode.querySelectorAll('.mcp-span-btn').forEach(function(b){b.classList.toggle('active',b===btn)});
+  btn.setAttribute('data-cfg','cols');
+  btn.setAttribute('data-val',val);
+  livePreview();
+}
+function handleInputTypeChange(sel){
+  var types={email:'TonyMa@qq.com',url:'https://example.com',tel:'13800000000',number:'0',password:'••••••••',text:'请输入...'};
+  var phEl=document.getElementById('cfgPlaceholder');if(phEl)phEl.value=types[sel.value]||'请输入...';
+  livePreview();
+}
+function saveModConfig(){
+  if(editingModIdx<0)return;
+  var mod=item.modules[editingModIdx];if(!mod)return;
+  var name=typeof mod==='string'?mod:mod.name;
+  if(!mod.config) mod.config={};
+  // 从表单读取
+  document.getElementById('mcpBody').querySelectorAll('[data-cfg]').forEach(function(el){
+    var key=el.getAttribute('data-cfg'),val;
+    if(el.tagName==='BUTTON'){if(!el.classList.contains('active'))return;key=el.getAttribute('data-cfg');val=parseInt(el.getAttribute('data-val'))}
+    else if(el.id==='cfgLabelRich'){key='label';val=el.innerHTML}
+    else if(el.id==='cfgFontSize'){key='fontSize';val=parseInt(el.value)||14}
+    else if(el.type==='checkbox')val=el.checked;
+    else val=el.value;
+    if(key==='options') val=val.split('\n').filter(Boolean);
+    mod.config[key]=val;
+  });
+  closeModConfig();
+  refreshPalette();
+}
+
+function renderConfigFields(name,cfg){
+  var reqMark=cfg.required?'<span style="color:#e74c3c;margin-left:2px">*</span>':'';
+  // 通用：占位列宽（放在标题行）
+  h='<div class="mcp-field"><div class="mcp-title-row"><div class="mcp-label" style="font-size:14px;color:#333;display:flex;align-items:center">'+name+reqMark+'</div>';
+  h+='<span class="mcp-span-btns">'+[1,2,3,4].map(function(s){return'<button class="mcp-span-btn'+(cfg.cols==s||(!cfg.cols&&s==4)?' active':'')+'" data-cfg="cols" data-val="'+s+'" onclick="setSpanBtn(this)">'+s+'</button>'}).join('')+'</span>';
+  if(name==='单行输入框'||name==='多行输入框'||name==='选择器'){
+    h+='<div class="mcp-check"><input type="checkbox" data-cfg="required" id="cfg_req"'+(cfg.required?' checked':'')+' onchange="livePreview()"><label for="cfg_req">必填</label></div>';
+  }
+  h+='</div></div>';
+  // 标签文字（仅输入/选择/控件类，这些在渲染中会用 cfg.label）
+  var needsLabel=/单行输入|多行输入|选择器|日期时间|文件上传|开关切换|范围滑块|评分组件|颜色选择|搜索框|数据表格|分页导航|进度条|折叠面板|选项卡切换|步骤进度条|分割线|面包屑导航|锚点导航|统计数据/.test(name);
+  if(needsLabel){
+    h+='<div class="mcp-field"><div class="mcp-inline"><label class="mcp-label" style="margin-bottom:0;flex-shrink:0">标签文字</label>';
+    h+='<div class="mcp-fmt-bar"><button class="mcp-fmt-btn" onclick="formatLabel(\'bold\')" title="加粗"><b>B</b></button><button class="mcp-fmt-btn" onclick="formatLabel(\'italic\')" title="斜体"><i>I</i></button><input class="mcp-fmt-sz-input" id="cfgFontSize" type="number" min="8" max="72" value="'+(cfg.fontSize||14)+'" placeholder="字号" onchange="formatLabel(\'fontSize\')" title="字号"><button class="mcp-fmt-btn" onclick="formatLabel(\'link\')" title="链接">🔗</button><span class="mcp-fmt-sep"></span><button class="mcp-fmt-btn" onclick="formatLabel(\'left\')" title="居左">◀</button><button class="mcp-fmt-btn" onclick="formatLabel(\'center\')" title="居中">◼</button><button class="mcp-fmt-btn" onclick="formatLabel(\'right\')" title="居右">▶</button></div></div>';
+    h+='<div class="mcp-rich-input" contenteditable="true" id="cfgLabelRich" data-cfg="label" oninput="livePreview()" style="width:100%;box-sizing:border-box;padding:6px 8px;min-height:32px;border:1px solid #ddd;border-radius:6px;font-size:13px;line-height:1.4">'+(cfg.label||'')+'</div></div>';
+  }
+
+  // === 单行输入框 ===
+  if(name==='单行输入框'){
+    h+='<div class="mcp-field"><div class="mcp-inline"><select class="mcp-select" data-cfg="inputType" onchange="handleInputTypeChange(this)" style="width:90px;flex-shrink:0"><option value="text"'+(cfg.inputType==='text'||!cfg.inputType?' selected':'')+'>文字</option><option value="email"'+(cfg.inputType==='email'?' selected':'')+'>邮箱</option><option value="url"'+(cfg.inputType==='url'?' selected':'')+'>网址</option><option value="tel"'+(cfg.inputType==='tel'?' selected':'')+'>手机号</option><option value="number"'+(cfg.inputType==='number'?' selected':'')+'>数字</option><option value="password"'+(cfg.inputType==='password'?' selected':'')+'>密码</option></select><input class="mcp-input" data-cfg="placeholder" id="cfgPlaceholder" value="'+(cfg.placeholder||'')+'" placeholder="占位提示文字" oninput="livePreview()" style="flex:1"></div></div>';
+    h+='<div class="mcp-field"><div class="mcp-inline"><span class="mcp-inline-label">最大长度(字符)</span><input class="mcp-input" type="number" data-cfg="maxLength" min="0" value="'+(cfg.maxLength||'')+'" placeholder="不限" oninput="livePreview()" style="width:100px"></div></div>';
+  }
+  // === 多行输入框 ===
+  else if(name==='多行输入框'){
+    h+='<div class="mcp-field"><label class="mcp-label">占位文字</label><textarea class="mcp-input" data-cfg="placeholder" rows="2" placeholder="输入框内的提示" oninput="livePreview()">'+(cfg.placeholder||'')+'</textarea></div>';
+    h+='<div class="mcp-field"><label class="mcp-label">行数</label><input class="mcp-input" type="number" data-cfg="rows" value="'+(cfg.rows||3)+'" min="1" max="20" oninput="livePreview()"></div>';
+    h+='<div class="mcp-field"><div class="mcp-check"><input type="checkbox" data-cfg="required" id="cfg_req"'+(cfg.required?' checked':'')+' onchange="livePreview()"><label for="cfg_req">必填项</label></div></div>';
+  }
+  // === 选择器 ===
+  else if(name==='选择器'){
+    h+='<div class="mcp-field"><label class="mcp-label">类型</label><select class="mcp-select" data-cfg="selType" onchange="livePreview()"><option value="dropdown"'+(cfg.selType==='dropdown'||!cfg.selType?' selected':'')+'>下拉选择</option><option value="radio"'+(cfg.selType==='radio'?' selected':'')+'>单选按钮</option><option value="checkbox"'+(cfg.selType==='checkbox'?' selected':'')+'>多选框</option></select></div>';
+    h+='<div class="mcp-field"><label class="mcp-label">选项列表（每行一个）</label><textarea class="mcp-input" data-cfg="options" rows="4" placeholder="选项 A&#10;选项 B&#10;选项 C" oninput="livePreview()">'+((cfg.options||[]).join('\n'))+'</textarea></div>';
+    if(cfg.selType!=='radio') h+='<div class="mcp-field"><div class="mcp-check"><input type="checkbox" data-cfg="required" id="cfg_req"'+(cfg.required?' checked':'')+'><label for="cfg_req">必填项</label></div></div>';
+  }
+  // === 日期时间 ===
+  else if(name==='日期时间'){
+    h+='<div class="mcp-field"><label class="mcp-label">类型</label><select class="mcp-select" data-cfg="dateType"><option value="date"'+(cfg.dateType==='date'||!cfg.dateType?' selected':'')+'>日期</option><option value="time"'+(cfg.dateType==='time'?' selected':'')+'>时间</option><option value="datetime-local"'+(cfg.dateType==='datetime-local'?' selected':'')+'>日期+时间</option></select></div>';
+    h+='<div class="mcp-field"><label class="mcp-label">默认值</label><input class="mcp-input" data-cfg="value" value="'+(cfg.value||'')+'" placeholder="2026-07-30 或 14:30"></div>';
+  }
+  // === 文件上传 ===
+  else if(name==='文件上传'){
+    h+='<div class="mcp-field"><label class="mcp-label">允许类型</label><select class="mcp-select" data-cfg="accept"><option value="*"'+(cfg.accept==='*'||!cfg.accept?' selected':'')+'>所有文件</option><option value="image/*"'+(cfg.accept==='image/*'?' selected':'')+'>仅图片</option><option value=".pdf,.doc,.docx"'+(cfg.accept==='.pdf,.doc,.docx'?' selected':'')+'>文档</option></select></div>';
+    h+='<div class="mcp-field"><label class="mcp-label">最大大小(KB)</label><input class="mcp-input" type="number" data-cfg="maxSize" value="'+(cfg.maxSize||'')+'" placeholder="不限"></div>';
+  }
+  // === 开关切换 ===
+  else if(name==='开关切换') h+='<div class="mcp-field"><div class="mcp-check"><input type="checkbox" data-cfg="defaultOn" id="cfg_def"'+(cfg.defaultOn?' checked':'')+'><label for="cfg_def">默认开启</label></div></div>';
+  // === 范围滑块 ===
+  else if(name==='范围滑块'){h+='<div class="mcp-field"><label class="mcp-label">最小值</label><input class="mcp-input" type="number" data-cfg="min" value="'+(cfg.min||0)+'"></div>';h+='<div class="mcp-field"><label class="mcp-label">最大值</label><input class="mcp-input" type="number" data-cfg="max" value="'+(cfg.max||100)+'"></div>';h+='<div class="mcp-field"><label class="mcp-label">默认值</label><input class="mcp-input" type="number" data-cfg="value" value="'+(cfg.value||50)+'"></div>';h+='<div class="mcp-field"><label class="mcp-label">步长</label><input class="mcp-input" type="number" data-cfg="step" value="'+(cfg.step||1)+'"></div>'}
+  // === 评分组件 ===
+  else if(name==='评分组件') h+='<div class="mcp-field"><label class="mcp-label">满分星级</label><select class="mcp-select" data-cfg="maxStars"><option value="5"'+(cfg.maxStars==5||!cfg.maxStars?' selected':'')+'>5星</option><option value="10"'+(cfg.maxStars==10?' selected':'')+'>10星</option></select></div>';
+  // === 颜色选择 ===
+  else if(name==='颜色选择') h+='<div class="mcp-field"><label class="mcp-label">默认颜色</label><input class="mcp-input" type="color" data-cfg="value" value="'+(cfg.value||'#3b82f6')+'" style="height:40px;padding:4px">';
+  // === 搜索框 ===
+  else if(name==='搜索框') h+='<div class="mcp-field"><label class="mcp-label">占位文字</label><input class="mcp-input" data-cfg="placeholder" value="'+(cfg.placeholder||'搜索关键词...')+'"></div>';
+  // === 图标标题组 ===
+  else if(name==='图标标题组'){h+='<div class="mcp-field"><label class="mcp-label">标题文字</label><input class="mcp-input" data-cfg="text" value="'+(cfg.text||'标题文字')+'"></div>';h+='<div class="mcp-field"><label class="mcp-label">对齐</label><select class="mcp-select" data-cfg="align"><option value="left"'+(cfg.align!=='center'&&cfg.align!=='right'?' selected':'')+'>居左</option><option value="center"'+(cfg.align==='center'?' selected':'')+'>居中</option><option value="right"'+(cfg.align==='right'?' selected':'')+'>居右</option></select></div>'}
+  // === 头像名片 ===
+  else if(name==='头像名片'){h+='<div class="mcp-field"><label class="mcp-label">名称</label><input class="mcp-input" data-cfg="name" value="'+(cfg.name||'用户名称')+'"></div>';h+='<div class="mcp-field"><label class="mcp-label">简介</label><input class="mcp-input" data-cfg="bio" value="'+(cfg.bio||'')+'"></div>'}
+  // === 标签组 ===
+  else if(name==='标签组'){h+='<div class="mcp-field"><label class="mcp-label">模式</label><select class="mcp-select" data-cfg="tagMode"><option value="display"'+(cfg.tagMode==='display'||!cfg.tagMode?' selected':'')+'>仅展示</option><option value="input"'+(cfg.tagMode==='input'?' selected':'')+'>可输入</option></select></div>';h+='<div class="mcp-field"><label class="mcp-label">标签文字（逗号分隔）</label><input class="mcp-input" data-cfg="tags" value="'+(cfg.tags||'前端,UI设计,产品')+'" placeholder="标签1,标签2,标签3"></div>'}
+  // === 进度条 ===
+  else if(name==='进度条'){h+='<div class="mcp-field"><label class="mcp-label">百分比</label><input class="mcp-input" type="number" data-cfg="percent" value="'+(cfg.percent||65)+'" min="0" max="100"></div>'}
+  // === 数字徽章 ===
+  else if(name==='数字徽章') h+='<div class="mcp-field"><label class="mcp-label">徽章文字</label><input class="mcp-input" data-cfg="text" value="'+(cfg.text||'NEW')+'"></div>';
+  // === 引用卡片 ===
+  else if(name==='引用卡片'){h+='<div class="mcp-field"><label class="mcp-label">引用文字</label><textarea class="mcp-input" data-cfg="quote" rows="3">'+(cfg.quote||'')+'</textarea></div>';h+='<div class="mcp-field"><label class="mcp-label">来源</label><input class="mcp-input" data-cfg="source" value="'+(cfg.source||'')+'"></div>'}
+  // === 联系方式卡 ===
+  else if(name==='联系方式卡'){h+='<div class="mcp-field"><label class="mcp-label">邮箱</label><input class="mcp-input" data-cfg="email" value="'+(cfg.email||'')+'"></div>';h+='<div class="mcp-field"><label class="mcp-label">电话</label><input class="mcp-input" data-cfg="phone" value="'+(cfg.phone||'')+'"></div>';h+='<div class="mcp-field"><label class="mcp-label">地址</label><input class="mcp-input" data-cfg="address" value="'+(cfg.address||'')+'"></div>'}
+  // === 媒体展示 ===
+  else if(name==='媒体展示'){h+='<div class="mcp-field"><label class="mcp-label">类型</label><select class="mcp-select" data-cfg="mediaType"><option value="image"'+(cfg.mediaType==='image'||!cfg.mediaType?' selected':'')+'>图片</option><option value="video"'+(cfg.mediaType==='video'?' selected':'')+'>视频</option></select></div>';h+='<div class="mcp-field"><label class="mcp-label">链接</label><input class="mcp-input" data-cfg="src" value="'+(cfg.src||'')+'" placeholder="https://example.com/image.jpg"></div>'}
+  // === 提示信息 ===
+  else if(name==='提示信息'){h+='<div class="mcp-field"><label class="mcp-label">文字</label><input class="mcp-input" data-cfg="msg" value="'+(cfg.msg||'')+'"></div>';h+='<div class="mcp-field"><label class="mcp-label">类型</label><select class="mcp-select" data-cfg="alertType"><option value="ok"'+(cfg.alertType!=='warn'?' selected':'')+'>成功</option><option value="warn"'+(cfg.alertType==='warn'?' selected':'')+'>警告</option></select></div>'}
+  // === 代码块 ===
+  else if(name==='代码块'){h+='<div class="mcp-field"><label class="mcp-label">代码内容</label><textarea class="mcp-input" data-cfg="code" rows="5" style="font-family:monospace">'+(cfg.code||'')+'</textarea></div>';h+='<div class="mcp-field"><label class="mcp-label">语言</label><input class="mcp-input" data-cfg="lang" value="'+(cfg.lang||'javascript')+'"></div>'}
+  // === 统计数据 ===
+  else if(name==='统计数据'){h+='<div class="mcp-field"><label class="mcp-label">数字</label><input class="mcp-input" data-cfg="num" value="'+(cfg.num||'12,850')+'"></div>'}
+  // === 时间线 ===
+  else if(name==='时间线') h+='<div class="mcp-field"><label class="mcp-label">节点（逗号分隔）</label><input class="mcp-input" data-cfg="nodes" value="'+(cfg.nodes||'已完成,进行中,待开始')+'">';
+  // === 空状态 ===
+  else if(name==='空状态'){h+='<div class="mcp-field"><label class="mcp-label">图标</label><input class="mcp-input" data-cfg="icon" value="'+(cfg.icon||'📭')+'"></div>';h+='<div class="mcp-field"><label class="mcp-label">提示文字</label><input class="mcp-input" data-cfg="text" value="'+(cfg.text||'暂无数据')+'"></div>'}
+  // === 选项卡 ===
+  else if(name==='选项卡切换') h+='<div class="mcp-field"><label class="mcp-label">标签名（逗号分隔）</label><input class="mcp-input" data-cfg="tabs" value="'+(cfg.tabs||'介绍,详情,评价')+'">';
+  // === 折叠面板 ===
+  else if(name==='折叠面板'){h+='<div class="mcp-field"><label class="mcp-label">标题</label><input class="mcp-input" data-cfg="label" value="'+(cfg.label||'常见问题')+'"></div>';h+='<div class="mcp-field"><div class="mcp-check"><input type="checkbox" data-cfg="open" id="cfg_open"'+(cfg.open?' checked':'')+'><label for="cfg_open">默认展开</label></div></div>'}
+  // === 步骤进度条 ===
+  else if(name==='步骤进度条') h+='<div class="mcp-field"><label class="mcp-label">步骤名（逗号分隔）</label><input class="mcp-input" data-cfg="steps" value="'+(cfg.steps||'确认,填写,完成')+'">';
+  // === 间距占位 ===
+  else if(name==='间距占位') h+='<div class="mcp-field"><label class="mcp-label">高度(px)</label><input class="mcp-input" type="number" data-cfg="height" value="'+(cfg.height||30)+'">';
+  // === 分栏布局 ===
+  else if(name==='分栏布局'){h+='<div class="mcp-field"><label class="mcp-label">栏数</label><select class="mcp-select" data-cfg="colsNum"><option value="2"'+(cfg.colsNum==2||!cfg.colsNum?' selected':'')+'>两栏</option><option value="3"'+(cfg.colsNum==3?' selected':'')+'>三栏</option><option value="4"'+(cfg.colsNum==4?' selected':'')+'>四栏</option></select></div>';h+='<div class="mcp-field"><label class="mcp-label">间距(px)</label><input class="mcp-input" type="number" data-cfg="gap" value="'+(cfg.gap||8)+'">'}
+  // === 面包屑 ===
+  else if(name==='面包屑导航') h+='<div class="mcp-field"><label class="mcp-label">路径（逗号分隔）</label><input class="mcp-input" data-cfg="path" value="'+(cfg.path||'首页,分类,当前页')+'">';
+  // === 锚点导航 ===
+  else if(name==='锚点导航') h+='<div class="mcp-field"><label class="mcp-label">锚点名（逗号分隔）</label><input class="mcp-input" data-cfg="anchors" value="'+(cfg.anchors||'概述,详情,评价')+'">';
+  // === 数据表格 ===
+  else if(name==='数据表格'){h+='<div class="mcp-field"><label class="mcp-label">列名（逗号分隔）</label><input class="mcp-input" data-cfg="columns" value="'+(cfg.columns||'名称,类型,日期')+'"></div>';h+='<div class="mcp-field"><label class="mcp-label">行数</label><input class="mcp-input" type="number" data-cfg="rows" value="'+(cfg.rows||2)+'">'}
+  // === 分页导航 ===
+  else if(name==='分页导航') h+='<div class="mcp-field"><label class="mcp-label">总页数</label><input class="mcp-input" type="number" data-cfg="pages" value="'+(cfg.pages||5)+'">';
+  // === 倒计时 ===
+  else if(name==='倒计时') h+='<div class="mcp-field"><label class="mcp-label">目标日期时间</label><input class="mcp-input" data-cfg="target" value="'+(cfg.target||'2026-12-31 23:59:59')+'">';
+  // === 二维码 ===
+  else if(name==='二维码'){h+='<div class="mcp-field"><label class="mcp-label">链接</label><input class="mcp-input" data-cfg="url" value="'+(cfg.url||'')+'" placeholder="https://..."></div>';h+='<div class="mcp-field"><label class="mcp-label">尺寸(px)</label><input class="mcp-input" type="number" data-cfg="size" value="'+(cfg.size||128)+'">'}
+  // === 地图嵌入 ===
+  else if(name==='地图嵌入') h+='<div class="mcp-field"><label class="mcp-label">地址</label><input class="mcp-input" data-cfg="address" value="'+(cfg.address||'')+'" placeholder="北京市朝阳区">';
+  // === 社交分享 ===
+  else if(name==='社交分享') h+='<div class="mcp-field"><label class="mcp-label">分享链接</label><input class="mcp-input" data-cfg="url" value="'+(cfg.url||'')+'">';
+  // === 音频播放 ===
+  else if(name==='音频播放') h+='<div class="mcp-field"><label class="mcp-label">音频链接</label><input class="mcp-input" data-cfg="src" value="'+(cfg.src||'')+'" placeholder="https://example.com/audio.mp3">';
+  // === 轮播图 ===
+  else if(name==='轮播图'){h+='<div class="mcp-field"><label class="mcp-label">图片链接（每行一个）</label><textarea class="mcp-input" data-cfg="images" rows="3" placeholder="https://...image1.jpg">'+((cfg.images||[]).join('\n'))+'</textarea></div>';h+='<div class="mcp-field"><label class="mcp-label">切换间隔(秒)</label><input class="mcp-input" type="number" data-cfg="interval" value="'+(cfg.interval||3)+'" min="1">'}
+  document.getElementById('mcpBody').innerHTML=h;
+}
+
+// 点已选模块打开配置
+document.getElementById('selModules').addEventListener('click',function(e){
+  var chip=e.target.closest('.sm-chip');
+  if(chip){var idx=parseInt(chip.getAttribute('data-sm-idx'));if(!isNaN(idx))openModConfig(idx)}
+});
+function loadCombo(){try{var r=localStorage.getItem(COMBO_KEY);return r?JSON.parse(r):null}catch(_){return null}}
+function saveCombo(d){try{localStorage.setItem(COMBO_KEY,JSON.stringify(d))}catch(_){}}
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2000)}
+
+var d=loadCombo();
+if(!d||!d.categories||!d.categories[catIdx]||!d.categories[catIdx].items[itemIdx]){
+  document.body.innerHTML='<div style="padding:40px;text-align:center;color:#999"><p>模板数据不存在</p><p style="font-size:12px">可能已被删除，请返回模版库</p></div>';throw new Error('data not found')
+}
+item=d.categories[catIdx].items[itemIdx];
+if(!item.content) item.content={richHtml:'',items:[]};
+// 迁移旧数据：字符串数组 → 对象数组
+if(item.modules&&item.modules.length>0&&typeof item.modules[0]==='string'){
+  item.modules=item.modules.map(function(n){return{name:n,config:{}}});
+  if(!item._pvCols) item._pvCols=item.modules.map(function(){return 4});
+  saveCombo(d);
+}
+if(!item.modules) item.modules=[];
+
+document.getElementById('tplInfo').textContent=d.categories[catIdx].name+' › '+item.name;
+document.getElementById('tplName').value=item.name||'';
+document.getElementById('tplTitle').value=item.title||'';
+try{document.getElementById('tplContent').value=JSON.stringify(item.content,null,2)}catch(_){document.getElementById('tplContent').value='{}'}
+updateIconPreview();
+renderPalette();
+renderSelModules();
+renderPreview();
+
+// 标题对齐按钮
+document.querySelectorAll('.align-btn').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('.align-btn').forEach(function(b){b.classList.remove('active')});
+    btn.classList.add('active');
+    item._titleAlign=btn.getAttribute('data-align');
+    renderPreview();
+  });
+});
+if(item._titleAlign){
+  var ab=document.querySelector('.align-btn[data-align="'+item._titleAlign+'"]');
+  if(ab)ab.classList.add('active');
+}
+
+document.getElementById('modPalette').addEventListener('click',function(e){
+  if(e.target.classList.contains('mod-chip')&&!e.target.classList.contains('added')){
+    var mod=e.target.getAttribute('data-mod');
+    if(!item.modules) item.modules=[];
+    if(!item.modules.some(function(m){return (typeof m==='string'?m:m.name)===mod})){item.modules.push({name:mod,config:{}});refreshPalette()}
+  }
+});
+// 悬停预览
+var popupOn=false;
+var popupEl=document.getElementById('modPopup');
+function toggleModPopup(){
+  popupOn=!popupOn;
+  document.getElementById('pvToggle').classList.toggle('on',popupOn);
+  if(!popupOn) popupEl.style.display='none';
+}
+document.getElementById('modPalette').addEventListener('mouseover',function(e){
+  if(!popupOn) return;
+  var chip=e.target.closest('.mod-chip');
+  if(!chip) return;
+  var mod=chip.getAttribute('data-mod');
+  popupEl.querySelector('.pp-name').textContent=mod;
+  popupEl.querySelector('.pp-preview').innerHTML=popupPreview(mod);
+  popupEl.style.display='block';
+});
+document.getElementById('modPalette').addEventListener('mousemove',function(e){
+  if(!popupOn||popupEl.style.display==='none') return;
+  var x=e.clientX+16,y=e.clientY+10;
+  if(x+290>window.innerWidth) x=e.clientX-300;
+  if(y+200>window.innerHeight) y=e.clientY-210;
+  popupEl.style.left=x+'px';popupEl.style.top=y+'px';
+});
+document.getElementById('modPalette').addEventListener('mouseleave',function(e){
+  if(!popupOn) return;
+  var chip=e.relatedTarget&&e.relatedTarget.closest('.mod-chip');
+  if(!chip) popupEl.style.display='none';
+});
+function popupPreview(name){
+  if(name==='输入框') return'<div style="width:100%"><div style="font-size:12px;color:#555;margin-bottom:4px">单行文本输入</div><input class="mi-input" value="请输入..." readonly></div>';
+  if(name==='必填输入框') return'<div style="width:100%"><div style="font-size:12px;color:#e74c3c;margin-bottom:4px">* 必填项</div><input class="mi-input" style="border-color:#e74c3c;background:#fff5f5" placeholder="此项必填" readonly></div>';
+  if(name==='可拉伸输入框') return'<div style="width:100%"><div style="font-size:12px;color:#555;margin-bottom:4px">多行文本，可拖拽调整大小</div><textarea class="mi-textarea" readonly>请输入详细内容...</textarea></div>';
+  if(name==='Markdown 输入框') return'<div style="width:100%"><div style="font-size:12px;color:#555;margin-bottom:4px">支持 Markdown 语法</div><div class="mi-md"># 标题<br><b>粗体</b> <i>斜体</i><br>- 列表</div></div>';
+  if(name==='下拉选择') return'<div style="width:100%"><div style="font-size:12px;color:#555;margin-bottom:4px">单选下拉</div><select class="mi-select"><option>请选择...</option><option>选项 A</option><option>选项 B</option></select></div>';
+  if(name==='日期选择') return'<div style="width:100%"><div style="font-size:12px;color:#555;margin-bottom:4px">日历日期选择器</div><input class="mi-date" type="date" value="2026-07-29"></div>';
+  if(name==='颜色选择') return'<div style="width:100%"><div style="font-size:12px;color:#555;margin-bottom:4px">颜色拾取器</div><input class="mi-color" type="color" value="#667eea" style="height:36px"></div>';
+  if(name==='开关') return'<div style="width:100%"><div style="font-size:12px;color:#555;margin-bottom:4px">Toggle 开关</div><div class="mi-toggle"><div class="mi-toggle-track"></div><span class="mi-toggle-lbl">启用</span></div></div>';
+  if(name==='滑块') return'<div style="width:100%"><div style="font-size:12px;color:#555;margin-bottom:4px">范围滑块</div><div class="mi-slider-wrap"><div class="mi-slider"></div><div class="mi-slider-lbl">65</div></div></div>';
+  if(name==='评分') return'<div style="width:100%"><div style="font-size:12px;color:#555;margin-bottom:4px">五星评分</div><div class="mi-stars" style="font-size:20px">★★★★☆</div></div>';
+  if(name==='标签输入') return'<div style="width:100%"><div style="font-size:12px;color:#555;margin-bottom:4px">多值标签</div><div class="mi-tags"><span class="mi-tag">标签一</span><span class="mi-tag">+ 添加</span></div></div>';
+  if(name==='搜索框') return'<div style="width:100%"><div style="font-size:12px;color:#555;margin-bottom:4px">带图标搜索框</div><div class="mi-search-wrap"><input class="mi-input" placeholder="搜索..." readonly></div></div>';
+  if(name==='单选组') return'<div class="mi-radio-grp"><div class="mi-radio-item"><span class="mi-radio-dot"></span>选项 A</div><div class="mi-radio-item"><span class="mi-radio-dot" style="border-color:#ccc"></span>选项 B</div></div>';
+  if(name==='多选框') return'<div class="mi-checkbox-grp"><div class="mi-checkbox-item"><span class="mi-checkbox-box">✓</span>选项 A</div><div class="mi-checkbox-item"><span class="mi-checkbox-box" style="background:#fff;color:#fff;border-color:#ccc"></span>选项 B</div></div>';
+  if(name==='图标框') return'<div class="mi-icon-box"><div class="mi-icon-sm">⭐</div><span class="mi-icon-lbl">标题文字</span></div>';
+  if(name==='技能卡片') return'<div class="mi-skill-tags"><span class="mi-skill-tag" style="background:#667eea">HTML</span><span class="mi-skill-tag" style="background:#27ae60">CSS</span><span class="mi-skill-tag" style="background:#f39c12">JS</span></div>';
+  if(name==='联系方式卡片') return'<div class="mi-contact-text"><div class="ct-row"><span class="ct-ic">📧</span>example@mail.com</div><div class="ct-row"><span class="ct-ic">📱</span>138-0000-0000</div></div>';
+  if(name==='头像') return'<div class="mi-avatar-wrap"><div class="mi-avatar">U</div><div class="mi-avatar-name">用户名</div></div>';
+  if(name==='徽章') return'<span class="mi-badge">新消息 3</span>';
+  if(name==='进度条') return'<div class="mi-progress-wrap"><div class="mi-progress"><div class="mi-progress-bar"></div></div><div class="mi-progress-lbl"><span>进度</span><span>65%</span></div></div>';
+  if(name==='时间线') return'<div class="mi-tl"><div class="mi-tl-item"><span class="mi-tl-dot done"></span>已完成</div><div class="mi-tl-line"></div><div class="mi-tl-item"><span class="mi-tl-dot"></span>进行中</div></div>';
+  if(name==='引用块') return'<div class="mi-quote">这是一段重要的引用文字</div>';
+  if(name==='通知提示') return'<div><div class="mi-alert ok">✅ 操作成功</div><div class="mi-alert warn" style="margin-top:4px">⚠️ 请注意</div></div>';
+  if(name==='空状态') return'<div class="mi-empty"><div class="mi-empty-icon">📭</div>暂无数据</div>';
+  if(name==='选项卡') return'<div class="mi-tabs"><span class="mi-tab on">选项一</span><span class="mi-tab">选项二</span><span class="mi-tab">选项三</span></div>';
+  if(name==='折叠面板') return'<div class="mi-accordion"><div class="mi-acc-head">面板标题 <span>▼</span></div><div class="mi-acc-body">折叠内容区域</div></div>';
+  if(name==='步骤条') return'<div class="mi-steps"><div class="mi-step-done"><div class="mi-step-num">1</div></div><span class="mi-step-line" style="background:#27ae60"></span><div><div class="mi-step-num">2</div></div><span class="mi-step-line"></span><div><div class="mi-step-num" style="background:#ccc">3</div></div></div>';
+  if(name==='分割线') return'<div class="mi-divider">分割线</div>';
+  if(name==='文件上传') return'<div class="mi-upload"><div style="font-size:20px">📁</div>拖拽上传</div>';
+  if(name==='代码块') return'<div class="mi-code"><span style="color:#88d8b0">function</span> <span style="color:#ff6b6b">hello</span>() { <span style="color:#88d8b0">return</span> <span style="color:#ffeaa7">"world"</span>; }</div>';
+  if(name==='视频嵌入') return'<div class="mi-video" style="min-height:100px"><div class="mi-video-btn">▶</div></div>';
+  if(name==='数据表格') return'<table class="mi-table"><tr><th>列A</th><th>列B</th></tr><tr><td>1</td><td>2</td></tr><tr><td>3</td><td>4</td></tr></table>';
+  if(name==='分页') return'<div class="mi-pagination"><span class="mi-page">‹</span><span class="mi-page cur">1</span><span class="mi-page">2</span><span class="mi-page">3</span><span class="mi-page">›</span></div>';
+  return name;
+}
+document.getElementById('selModules').addEventListener('click',function(e){
+  if(e.target.classList.contains('rm')){var mi=parseInt(e.target.getAttribute('data-rm'));item.modules.splice(mi,1);refreshPalette()}
+});
+function updateIconPreview(){var ic=item.icon||'fas fa-star';var el=document.getElementById('iconPreviewIcon');if(el)el.className=ic}
+function pickIcon(){showIconPicker(item.icon||'fas fa-star',function(ic){item.icon=ic;updateIconPreview();renderPreview()})}
+function showIconPicker(current,cb){
+  var icons=['fas fa-star','fas fa-home','fas fa-envelope','fas fa-phone','fas fa-user','fas fa-cog','fas fa-heart','fas fa-globe','fas fa-book','fas fa-file','fas fa-folder','fas fa-calendar','fas fa-clock','fas fa-bell','fas fa-comment','fas fa-image','fas fa-video','fas fa-music','fas fa-map','fas fa-car','fas fa-shopping-cart','fas fa-gift','fas fa-tag','fas fa-check','fas fa-times','fas fa-plus','fas fa-search','fas fa-lock','fas fa-key','fas fa-cloud','fas fa-download','fas fa-upload','fas fa-code','fas fa-database','fas fa-chart-bar','fas fa-list','fas fa-align-left','fas fa-pencil','fas fa-trash','fas fa-link','fas fa-flag','fas fa-rocket','fas fa-sun','fas fa-moon','fas fa-thumbs-up','fas fa-thumbs-down','fas fa-share','fas fa-print','fas fa-save','fas fa-edit','fas fa-trash-alt','fas fa-eye','fas fa-eye-slash','fas fa-wifi','fas fa-bluetooth','fas fa-battery-full','fas fa-plug','fas fa-mobile','fas fa-tablet','fas fa-laptop','fas fa-desktop','fas fa-server','fas fa-tv','fas fa-camera','fas fa-microphone','fas fa-headphones','fas fa-gamepad','fas fa-palette','fas fa-paint-brush','fas fa-crown','fas fa-award','fas fa-medal','fas fa-trophy','fas fa-fire','fas fa-bolt','fas fa-shield','fas fa-umbrella','fas fa-anchor','fas fa-leaf','fas fa-tree','fas fa-feather','fas fa-fish','fas fa-paw','fas fa-bug','fas fa-lightbulb','fas fa-magnet','fas fa-atom','fas fa-dna','fas fa-flask','fas fa-paper-plane','fas fa-bullhorn','fas fa-bullseye','fas fa-compass','fas fa-map-pin','fas fa-location-dot','fas fa-road','fas fa-bicycle','fas fa-plane','fas fa-ship','fas fa-train','fas fa-bus','fas fa-taxi','fas fa-truck','fas fa-coffee','fas fa-beer','fas fa-wine-glass','fas fa-utensils','fas fa-birthday-cake','fas fa-cookie','fas fa-lemon','fas fa-apple','fas fa-bread-slice','fas fa-pizza-slice','fas fa-wrench','fas fa-hammer','fas fa-tools','fas fa-cut','fas fa-scissors','fas fa-ruler','fas fa-calculator','fas fa-barcode','fas fa-qrcode','fas fa-fingerprint','fas fa-id-card','fas fa-address-book','fas fa-envelope-open','fas fa-inbox','fas fa-paperclip','fas fa-sticky-note','fas fa-clipboard','fas fa-copy','fas fa-paste','fas fa-undo','fas fa-redo','fas fa-sync','fas fa-spinner','fas fa-hourglass','fas fa-history','fas fa-stopwatch','fas fa-layer-group','fas fa-puzzle-piece','fas fa-cubes','fas fa-cube','fas fa-box','fas fa-boxes','fas fa-archive','fas fa-th','fas fa-grip','fas fa-grip-vertical','fas fa-arrows-alt','fas fa-expand','fas fa-compress','fas fa-maximize','fas fa-minimize','fas fa-up-down','fas fa-left-right','fas fa-filter','fas fa-sort','fas fa-random','fas fa-sign-in','fas fa-sign-out','fas fa-user-plus','fas fa-users','fas fa-user-friends','fas fa-child','fas fa-baby','fas fa-smile','fas fa-frown','fas fa-meh','fas fa-laugh','fas fa-grin','fas fa-angry','fas fa-tired','fas fa-sad-tear','fas fa-surprise','fas fa-dizzy','fas fa-ghost','fas fa-skull','fas fa-robot','fas fa-cat','fas fa-dog','fas fa-crow','fas fa-dragon','fas fa-hippo','fas fa-spider','fas fa-otter','fas fa-horse','fas fa-dove','fas fa-kiwi-bird','fas fa-hat-wizard','fas fa-hat-cowboy','fas fa-glasses','fas fa-mask','fas fa-tshirt','fas fa-shoe-prints'];
+  var icLabels={'fas fa-star':'星星 收藏','fas fa-home':'首页 房子 主页','fas fa-envelope':'信封 邮件','fas fa-phone':'电话','fas fa-user':'用户 人','fas fa-cog':'齿轮 设置','fas fa-heart':'心 喜欢 爱心','fas fa-globe':'地球 全球 网站','fas fa-book':'书 书本','fas fa-file':'文件','fas fa-folder':'文件夹','fas fa-calendar':'日历 日期','fas fa-clock':'时钟 时间','fas fa-bell':'铃铛 通知 提醒','fas fa-comment':'评论 消息','fas fa-image':'图片 图像','fas fa-video':'视频','fas fa-music':'音乐','fas fa-map':'地图','fas fa-car':'汽车 车','fas fa-shopping-cart':'购物车 商城','fas fa-gift':'礼物','fas fa-tag':'标签','fas fa-check':'对勾 正确 确认','fas fa-times':'叉号 关闭 错误','fas fa-plus':'加号 添加','fas fa-search':'搜索 查找','fas fa-lock':'锁 密码 安全','fas fa-key':'钥匙','fas fa-cloud':'云','fas fa-download':'下载','fas fa-upload':'上传','fas fa-code':'代码','fas fa-database':'数据库','fas fa-chart-bar':'图表 统计','fas fa-list':'列表','fas fa-align-left':'左对齐 文本','fas fa-pencil':'铅笔 编辑','fas fa-trash':'垃圾桶 删除','fas fa-link':'链接','fas fa-flag':'旗帜 标记','fas fa-rocket':'火箭 发射','fas fa-sun':'太阳 白天','fas fa-moon':'月亮 夜晚','fas fa-thumbs-up':'点赞 赞','fas fa-thumbs-down':'踩 反对','fas fa-share':'分享','fas fa-print':'打印','fas fa-save':'保存','fas fa-edit':'编辑','fas fa-eye':'眼睛 查看 可见','fas fa-eye-slash':'闭眼 隐藏','fas fa-wifi':'无线网','fas fa-bluetooth':'蓝牙','fas fa-battery-full':'电池 电量','fas fa-plug':'插头 电源','fas fa-mobile':'手机','fas fa-tablet':'平板','fas fa-laptop':'笔记本','fas fa-desktop':'台式机 电脑','fas fa-server':'服务器','fas fa-tv':'电视','fas fa-camera':'相机 拍照','fas fa-microphone':'麦克风 录音','fas fa-headphones':'耳机','fas fa-gamepad':'游戏手柄','fas fa-palette':'调色板 颜色','fas fa-paint-brush':'画笔 绘画','fas fa-crown':'皇冠 王者','fas fa-award':'奖状 荣誉','fas fa-medal':'奖牌','fas fa-trophy':'奖杯','fas fa-fire':'火焰 热门','fas fa-bolt':'闪电 快速','fas fa-shield':'盾牌 保护','fas fa-umbrella':'雨伞','fas fa-anchor':'锚 航海','fas fa-leaf':'叶子 自然','fas fa-tree':'树','fas fa-feather':'羽毛 轻','fas fa-fish':'鱼','fas fa-paw':'爪子 宠物','fas fa-bug':'虫子 错误','fas fa-lightbulb':'灯泡 灵感 创意','fas fa-magnet':'磁铁 吸引','fas fa-atom':'原子 科学','fas fa-dna':'基因 生物','fas fa-flask':'烧瓶 实验','fas fa-paper-plane':'纸飞机 发送','fas fa-bullhorn':'喇叭 公告','fas fa-bullseye':'靶心 目标','fas fa-compass':'指南针 方向','fas fa-map-pin':'图钉 地点','fas fa-location-dot':'定位 位置','fas fa-road':'公路 道路','fas fa-bicycle':'自行车','fas fa-plane':'飞机','fas fa-ship':'轮船','fas fa-train':'火车','fas fa-bus':'公交车','fas fa-taxi':'出租车','fas fa-truck':'卡车 货车','fas fa-coffee':'咖啡','fas fa-beer':'啤酒','fas fa-wine-glass':'红酒杯','fas fa-utensils':'餐具 餐饮','fas fa-birthday-cake':'生日蛋糕','fas fa-cookie':'饼干','fas fa-lemon':'柠檬','fas fa-apple':'苹果','fas fa-bread-slice':'面包','fas fa-pizza-slice':'披萨','fas fa-wrench':'扳手 工具','fas fa-hammer':'锤子','fas fa-tools':'工具箱','fas fa-scissors':'剪刀 剪切','fas fa-ruler':'尺子 测量','fas fa-calculator':'计算器','fas fa-barcode':'条形码','fas fa-qrcode':'二维码','fas fa-fingerprint':'指纹','fas fa-id-card':'身份证 证件','fas fa-address-book':'通讯录','fas fa-envelope-open':'打开信封 收件','fas fa-inbox':'收件箱','fas fa-paperclip':'回形针 附件','fas fa-sticky-note':'便签','fas fa-clipboard':'剪贴板','fas fa-copy':'复制','fas fa-paste':'粘贴','fas fa-undo':'撤销','fas fa-redo':'重做','fas fa-sync':'同步 刷新','fas fa-spinner':'加载 旋转','fas fa-hourglass':'沙漏 等待','fas fa-history':'历史 记录','fas fa-stopwatch':'秒表 计时','fas fa-layer-group':'图层','fas fa-puzzle-piece':'拼图','fas fa-cubes':'方块组','fas fa-cube':'方块','fas fa-box':'盒子','fas fa-boxes':'盒子组','fas fa-archive':'归档 存档','fas fa-th':'网格 宫格','fas fa-grip':'拖拽手柄','fas fa-grip-vertical':'竖拖拽','fas fa-arrows-alt':'全屏 缩放','fas fa-expand':'展开','fas fa-compress':'压缩','fas fa-maximize':'最大化','fas fa-minimize':'最小化','fas fa-up-down':'上下','fas fa-left-right':'左右','fas fa-filter':'筛选 过滤','fas fa-sort':'排序','fas fa-random':'随机','fas fa-sign-in':'登录','fas fa-sign-out':'退出','fas fa-user-plus':'添加用户','fas fa-users':'多人 团队','fas fa-user-friends':'好友','fas fa-child':'儿童','fas fa-baby':'婴儿','fas fa-smile':'微笑 开心','fas fa-frown':'皱眉 不开心','fas fa-meh':'面无表情','fas fa-laugh':'大笑','fas fa-grin':'咧嘴笑','fas fa-angry':'生气 愤怒','fas fa-tired':'疲惫','fas fa-sad-tear':'流泪 伤心','fas fa-surprise':'惊讶','fas fa-dizzy':'晕','fas fa-ghost':'幽灵','fas fa-skull':'骷髅','fas fa-robot':'机器人','fas fa-cat':'猫','fas fa-dog':'狗','fas fa-crow':'乌鸦','fas fa-dragon':'龙','fas fa-hippo':'河马','fas fa-spider':'蜘蛛','fas fa-otter':'水獭','fas fa-horse':'马','fas fa-dove':'鸽子 和平','fas fa-kiwi-bird':'奇异鸟','fas fa-hat-wizard':'巫师帽 魔法','fas fa-hat-cowboy':'牛仔帽','fas fa-glasses':'眼镜','fas fa-mask':'面具','fas fa-tshirt':'T恤 衣服','fas fa-shoe-prints':'脚印'};
+  var ov=document.createElement('div');ov.className='cfm-ov';
+  var html='<div class="cfm-box" style="max-width:520px"><div class="cfm-title" style="display:flex;justify-content:space-between;align-items:center">选择图标<span class="ic-close" style="cursor:pointer;font-size:22px;color:#999;line-height:1">&times;</span></div><div style="margin-bottom:12px;display:flex;align-items:center;gap:8px"><input id="icSearch" placeholder="搜索图标..." style="flex:1;padding:6px 10px;border:1px solid #ddd;border-radius:5px;font-size:13px"><span style="font-size:11px;color:#999;white-space:nowrap">点击选择</span></div><div id="icGrid" style="display:flex;flex-wrap:wrap;gap:4px;max-height:260px;overflow-y:auto">'+icons.map(function(ic){return'<span class="ic-opt'+(ic===current?' sel':'')+'" data-ic="'+ic+'" title="'+ic+'"><i class="'+ic+'"></i></span>'}).join('')+'</div></div>';
+  ov.innerHTML=html;
+  document.body.appendChild(ov);
+  var grid=ov.querySelector('#icGrid');
+  grid.addEventListener('click',function(e){var opt=e.target.closest('.ic-opt');if(opt){document.body.removeChild(ov);cb(opt.getAttribute('data-ic'))}});
+  ov.querySelector('#icSearch').addEventListener('input',function(){var q=this.value.toLowerCase();grid.querySelectorAll('.ic-opt').forEach(function(o){var ic=o.getAttribute('data-ic');var label=(icLabels[ic]||'')+' '+ic;o.style.display=q?label.toLowerCase().indexOf(q)>=0?'':'none':''})});
+  ov.querySelector('.ic-close').addEventListener('click',function(){document.body.removeChild(ov)});
+  function onEsc(e){if(e.key==='Escape'){document.body.removeChild(ov);document.removeEventListener('keydown',onEsc)}}
+  document.addEventListener('keydown',onEsc);
+}
+function saveTemplate(){
+  showConfirm('确定要保存当前模板吗？',function(){
+    item.name=document.getElementById('tplName').value.trim()||item.name;
+    if(!item.type) item.type='text';
+    item.icon=item.icon||'fas fa-star';
+    item.title=document.getElementById('tplTitle').value.trim()||item.name;
+    try{item.content=JSON.parse(document.getElementById('tplContent').value)}catch(_){toast('保存失败：JSON 格式错误','err');return}
+    try{saveCombo(d)}catch(_){toast('保存失败','err');return}
+    document.getElementById('tplInfo').textContent=d.categories[catIdx].name+' › '+item.name;
+    toast('✔ 保存成功','ok');
+  },function(){
+    toast('已取消保存','warn');
+  });
+}
+
+function toast(m,type){
+  var t=document.getElementById('toast');
+  t.textContent=m;t.className='toast '+(type||'');
+  t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show')},2500);
+}
+
+function showConfirm(msg,onOk,onCancel){
+  var ov=document.createElement('div');ov.className='cfm-ov';
+  ov.innerHTML='<div class="cfm-box"><div class="cfm-icon">💾</div><div class="cfm-title">确认保存</div><div class="cfm-desc">'+msg+'</div><div class="cfm-btns"><button class="cfm-cancel">取消</button><button class="cfm-ok">确认保存</button></div></div>';
+  document.body.appendChild(ov);
+  var ok=ov.querySelector('.cfm-ok'),cancel=ov.querySelector('.cfm-cancel');
+  ok.onclick=function(){document.body.removeChild(ov);if(onOk)onOk()};
+  cancel.onclick=function(){document.body.removeChild(ov);if(onCancel)onCancel()};
+  ov.addEventListener('click',function(e){if(e.target===ov){document.body.removeChild(ov);if(onCancel)onCancel()}});
+  function onEsc(e){if(e.key==='Escape'){document.body.removeChild(ov);document.removeEventListener('keydown',onEsc);if(onCancel)onCancel()}}
+  document.addEventListener('keydown',onEsc);
+  ok.focus();
+}
+
+// ─── 预览渲染 ───
+function escH(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function getPreviewData(){
+  var name=document.getElementById('tplName').value.trim()||'未命名模板';
+  var type=item.type||'text';
+  var icon=item.icon||'fas fa-star';
+  var title=document.getElementById('tplTitle').value.trim()||name;
+  var mods=item.modules||[];
+  var content={};try{content=JSON.parse(document.getElementById('tplContent').value)}catch(e){content=item.content||{}}
+  return{name:name,type:type,icon:icon,title:title,mods:mods,content:content};
+}
+
+var livePreviewMode=false;
+function toggleLivePreview(){
+  livePreviewMode=!livePreviewMode;
+  var t=document.getElementById('liveToggle');
+  if(livePreviewMode){t.classList.add('on');document.body.classList.add('live-mode')}
+  else{t.classList.remove('on');document.body.classList.remove('live-mode')}
+  renderPreview();
+}
+
+function renderPreview(){
+  var pd=getPreviewData();
+  var type=pd.type,mods=pd.mods,content=pd.content;
+  var badgeColors={text:'#667eea',skills:'#27ae60',contacts:'#3498db',form:'#e74c3c',success:'#27ae60',guidelines:'#f39c12',categories:'#9b59b6'};
+  var html='<div class="pv-card">';
+  var align=item._titleAlign||'left';
+  var isCenter=align==='center',isRight=align==='right';
+  html+='<div class="pv-head" style="justify-content:'+(isCenter?'center':isRight?'flex-end':'flex-start')+'"><div class="pv-icon"><i class="'+escH(pd.icon)+'"></i></div>';
+  html+='<div class="pv-hinfo" style="'+(isCenter||isRight?'flex:none':'')+'"><div class="pv-title">'+escH(pd.title)+'</div></div></div>';
+  html+='<div class="pv-body">';
+  if(mods.length>0){
+    if(!item._pvCols) item._pvCols=[];
+    html+='<div class="pv-mod-render">';
+    mods.forEach(function(m,mi){
+      var name=typeof m==='string'?m:m.name,cfg=m.config||{};
+      var span=cfg.cols||(item._pvCols&&item._pvCols[mi])||4;
+      html+=renderModuleItem(name,mi,span,cfg);
+    });
+    html+='</div>';
+  }
+  html+='<div style="margin-top:'+(mods.length>0?'12':'0')+'px">';
+  html+=renderTypeContent(type,content);
+  html+='</div>';
+  html+='</div></div>';
+  document.getElementById('previewArea').innerHTML=html;
+  // 每模块独立宽度
+  document.querySelectorAll('[data-set-span]').forEach(function(el){
+    el.addEventListener('click',function(e){
+      e.stopPropagation();
+      var parts=el.getAttribute('data-set-span').split('_');
+      var idx=parseInt(parts[0]);
+      var span=parseInt(parts[1]);
+      if(!item._pvCols) item._pvCols=[];
+      item._pvCols[idx]=span;
+      if(item.modules[idx]){if(!item.modules[idx].config)item.modules[idx].config={};item.modules[idx].config.cols=span;}
+      renderPreview();
+    });
+  });
+  // 拖拽重排 + 删除
+  var render=document.querySelector('.pv-mod-render');
+  if(!render) return;
+  render.querySelectorAll('.mi-handle[data-drag]').forEach(function(h){
+    h.addEventListener('mousedown',function(e){
+      e.preventDefault();
+      var item=h.closest('.pv-mod-item');
+      var oldIdx=parseInt(item.getAttribute('data-mi-idx'));
+      item.classList.add('dragging');
+      document.addEventListener('mousemove',onMove);
+      document.addEventListener('mouseup',onUp);
+      function onMove(e2){
+        var target=document.elementFromPoint(e2.clientX,e2.clientY);
+        if(!target) return;
+        var targetItem=target.closest('.pv-mod-item');
+        if(!targetItem||targetItem===item) return;
+        var tr=targetItem.getBoundingClientRect();
+        if(e2.clientY>tr.top+tr.height/2){
+          if(targetItem.nextSibling) render.insertBefore(item,targetItem.nextSibling);
+          else render.appendChild(item);
+        }else{
+          render.insertBefore(item,targetItem);
+        }
+        // 同步数据
+        syncModOrder();
+      }
+      function onUp(e2){
+        document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);
+        item.classList.remove('dragging');
+        syncModOrder();renderSelModules();
+      }
+    });
+  });
+  render.querySelectorAll('.mi-rm').forEach(function(rm){
+    rm.onclick=function(e){
+      e.stopPropagation();
+      var idx=parseInt(rm.getAttribute('data-rm'));
+      item.modules.splice(idx,1);refreshPalette();
+    };
+  });
+}
+
+function syncModOrder(){
+  var render=document.querySelector('.pv-mod-render');
+  if(!render) return;
+  var names=[],spanMap=[];
+  render.querySelectorAll('.pv-mod-item').forEach(function(mi,ni){
+    mi.setAttribute('data-mi-idx',ni);
+  });
+  render.querySelectorAll('.pv-mod-item .mi-lbl').forEach(function(lbl){
+    names.push(lbl.textContent);
+  });
+  render.querySelectorAll('.pv-mod-item').forEach(function(mi){
+    spanMap.push(mi.classList.contains('span1')?1:mi.classList.contains('span2')?2:mi.classList.contains('span3')?3:4);
+  });
+  // 保留旧模块的配置对象
+  var oldMap={};
+  item.modules.forEach(function(m){var n=typeof m==='string'?m:m.name;oldMap[n]=m});
+  item.modules=names.map(function(n){return oldMap[n]&&typeof oldMap[n]==='object'?oldMap[n]:{name:n,config:{}}});
+  item._pvCols=spanMap;
+}
+
+function renderTypeContent(type,content){
+  if(type==='text'){
+    var rh=content.richHtml||'';
+    if(!rh.trim()) return'<div class="pv-content"><p style="color:#ccc;font-style:italic">文本段落内容将在保存后显示</p></div>';
+    return'<div class="pv-content">'+rh+'</div>';
+  }
+  if(type==='skills'){
+    var items=content.items||[];
+    if(items.length===0) return'<div class="pv-content"><p style="color:#ccc">暂无技能标签</p></div>';
+    return'<div class="pv-skills">'+items.map(function(it,i){return'<span class="pv-skill-tag" style="background:'+SKILL_COLORS[i%SKILL_COLORS.length]+'">'+escH(it.label||it.name||it)+'</span>'}).join('')+'</div>';
+  }
+  if(type==='contacts'){
+    var ct=content.items||[];
+    if(ct.length===0) return'<div class="pv-contacts"><p style="color:#ccc">暂无联系方式</p></div>';
+    return'<div class="pv-contacts">'+ct.map(function(c){
+      var ic=c.icon||'📌';var lab=c.label||'';var val=c.value||c.url||c.text||'';
+      return'<div class="ct-line"><span class="ct-icon">'+escH(ic)+'</span><span>'+escH(lab)+(lab&&val?'：':'')+escH(val)+'</span></div>';
+    }).join('')+'</div>';
+  }
+  if(type==='form'){
+    var fs=content.items||content.fields||[];
+    if(fs.length===0) fs=[{label:'姓名',required:true},{label:'邮箱',required:true},{label:'留言',type:'textarea'}];
+    return'<div class="pv-form-fields">'+fs.map(function(f){
+      var req=f.required||f.req||false;
+      var tf=f.type==='textarea'?'可拉伸输入框':(f.type||'输入框');
+      return'<div class="pv-field'+(req?' req':'')+'">'+(req?'* ':'')+escH(f.label||f.name||'')+'<span style="float:right;color:#bbb;font-size:10px">'+tf+'</span></div>';
+    }).join('')+'</div>';
+  }
+  if(type==='success'){
+    return'<div class="pv-success"><div class="pv-check">✅</div><div style="font-weight:600;font-size:15px">'+escH(content.title||'操作成功')+'</div><div style="margin-top:4px;opacity:.8">'+escH(content.message||content.desc||'提交已成功处理')+'</div></div>';
+  }
+  if(type==='guidelines'){
+    var gl=content.items||[];
+    if(gl.length===0) gl=[{text:'步骤一：填写基本信息'},{text:'步骤二：确认提交内容'},{text:'步骤三：等待审核结果'}];
+    return'<div class="pv-guidelines">'+gl.map(function(g,i){return'<div class="gl-item"><span class="gl-num">'+(i+1)+'</span><span>'+escH(g.text||g.label||g)+'</span></div>'}).join('')+'</div>';
+  }
+  if(type==='categories'){
+    var cs=content.items||[];
+    if(cs.length===0) cs=[{label:'选项 A'},{label:'选项 B'},{label:'选项 C'}];
+    return'<div class="pv-categories">'+cs.map(function(c){return'<span class="pv-cat-opt">'+escH(c.label||c.name||c)+'</span>'}).join('')+'</div>';
+  }
+  return'<div class="pv-content"><p>'+JSON.stringify(content).slice(0,200)+'</p></div>';
+}
+
+// ─── 模块可视化渲染（全尺寸）───
+function renderModuleItem(name,idx,span,cfg){
+  var spanCls=' span'+span;
+  var body='';
+  // 表单输入
+  if(name==='单行输入框'||name==='输入框'){var it=cfg&&cfg.inputType?cfg.inputType:'text',ph=cfg&&cfg.placeholder?cfg.placeholder:(it==='email'?'name@example.com':it==='url'?'https://example.com':it==='tel'?'13800000000':it==='number'?'数字':it==='password'?'••••••••':'请输入...'),lb=cfg&&cfg.label?cfg.label:'',req=cfg&&cfg.required?' <span style="color:#e74c3c">*</span>':'';body=(lb?'<div><label style="font-size:14px;color:#333;display:block;margin-bottom:6px">'+lb+req+'</label>':'')+'<input class="mi-input" type="'+it+'" placeholder="'+ph+'" readonly>'+(lb?'</div>':'')}
+  else if(name==='多行输入框'){var ph=cfg&&cfg.placeholder?cfg.placeholder:'请输入详细内容...',lb=cfg&&cfg.label?cfg.label:'',rows=cfg&&cfg.rows?cfg.rows:3;body=(lb?'<div><label style="font-size:14px;color:#333;display:block;margin-bottom:6px">'+lb+'</label>':'')+'<textarea class="mi-textarea" rows="'+rows+'" readonly>'+ph+'</textarea>'+(lb?'</div>':'')}
+  else if(name==='选择器'){var st=cfg&&cfg.selType?cfg.selType:'dropdown',opt=cfg&&cfg.options&&cfg.options.length?cfg.options:['选项 A','选项 B','选项 C'],lb=cfg&&cfg.label?cfg.label:'选择项';if(st==='radio')body='<div><label style="font-size:14px;color:#333;display:block;margin-bottom:6px">'+lb+'</label><div class="mi-radio-grp">'+opt.map(function(o,i){return'<div class="mi-radio-item"><span class="mi-radio-dot"'+(i>0?' style="border-color:#ccc"':'')+'></span>'+o+'</div>'}).join('')+'</div></div>';else if(st==='checkbox')body='<div><label style="font-size:14px;color:#333;display:block;margin-bottom:6px">'+lb+'</label><div class="mi-checkbox-grp">'+opt.map(function(o,i){return'<div class="mi-checkbox-item"><span class="mi-checkbox-box"'+(i>0?' style="background:#fff;color:#fff;border-color:#ccc"':'')+'>'+(i===0?'✓':'')+'</span>'+o+'</div>'}).join('')+'</div></div>';else body='<div><label style="font-size:14px;color:#333;display:block;margin-bottom:6px">'+lb+'</label><select class="mi-select"><option>请选择...</option>'+opt.map(function(o){return'<option>'+o+'</option>'}).join('')+'</select></div>'}
+  else if(name==='日期时间'){var dt=cfg&&cfg.dateType?cfg.dateType:'date',lb=cfg&&cfg.label?cfg.label:'日期',v=cfg&&cfg.value||(dt==='time'?'14:30':'2026-07-30');body='<div><label style="font-size:14px;color:#333;display:block;margin-bottom:6px">'+lb+'</label><input class="mi-date" type="'+dt+'" value="'+v+'"></div>'}
+  else if(name==='颜色选择'){var lb=cfg&&cfg.label?cfg.label:'颜色';body='<div><label style="font-size:14px;color:#333;display:block;margin-bottom:6px">'+lb+'</label><input class="mi-color" type="color" value="'+(cfg&&cfg.value||'#3b82f6')+'"></div>'}
+  else if(name==='开关切换'||name==='开关'){var lb=cfg&&cfg.label?cfg.label:'启用通知',on=cfg&&cfg.defaultOn;body='<div class="mi-toggle"><div class="mi-toggle-track'+(on?' mi-toggle-on':'')+'"></div><span class="mi-toggle-lbl">'+lb+'</span></div>'}
+  else if(name==='范围滑块'||name==='滑块'){var lb=cfg&&cfg.label?cfg.label:'',val=cfg&&cfg.value!==undefined?cfg.value:65,min=cfg&&cfg.min!==undefined?cfg.min:0,max=cfg&&cfg.max!==undefined?cfg.max:100,pct=(val-min)/(max-min)*100;body='<div class="mi-slider-wrap">'+(lb?'<div style="font-size:12px;color:#666;margin-bottom:4px">'+lb+'</div>':'')+'<div class="mi-slider"><div style="position:absolute;left:'+pct+'%;top:-5px;width:16px;height:16px;background:#667eea;border-radius:50%"></div></div><div class="mi-slider-lbl">当前值：'+val+'</div></div>'}
+  else if(name==='评分组件'||name==='评分'){var max=cfg&&cfg.maxStars?cfg.maxStars:5,stars='';for(var i=0;i<max;i++)stars+=i<4?'★':'☆';body='<div><div class="mi-stars">'+stars+'</div><div style="font-size:13px;color:#999;margin-top:4px">4.0 / '+max+'.0</div></div>'}
+  else if(name==='文件上传'){var lb=cfg&&cfg.label?cfg.label:'上传文件';body='<div><label style="font-size:14px;color:#333;display:block;margin-bottom:6px">'+lb+'</label><div style="padding:24px;border:2px dashed #ddd;border-radius:8px;text-align:center;color:#ccc;font-size:13px">📁 点击或拖拽上传</div></div>'}
+  else if(name==='标签组'){var tags=cfg&&cfg.tags?cfg.tags.split(',').map(function(t){return t.trim()}):['前端','UI','产品'];body='<div class="mi-tags">'+tags.map(function(t){return'<span class="mi-tag">'+t+'</span>'}).join('')+(cfg&&cfg.tagMode==='input'?'<span class="mi-tag" style="background:#fff;border:1px dashed #ccc;color:#999">+ 添加</span>':'')+'</div>'}
+  else if(name==='搜索框'){var ph=cfg&&cfg.placeholder?cfg.placeholder:'搜索关键词...',lb=cfg&&cfg.label?cfg.label:'';body=(lb?'<label style="font-size:14px;color:#333;display:block;margin-bottom:6px">'+lb+'</label>':'')+'<div class="mi-search-wrap"><input class="mi-input" placeholder="'+ph+'" readonly></div>'}
+  else if(/^必填/.test(name)) body='<div><label style="font-size:14px;color:#333;display:block;margin-bottom:6px"><span style="color:#e74c3c">*</span> 必填字段</label><input class="mi-input req" placeholder="此项必填" readonly></div>';
+  // 展示组件
+  else if(name==='富文本段落') body='<div class="pv-content"><p>正文内容可设格式、颜色和大小...</p></div>';
+  else if(name==='图标标题组'||name==='图标框'){var txt=cfg&&cfg.text?cfg.text:'标题文字';body='<div class="mi-icon-box"><div class="mi-icon2">⭐</div><span style="font-size:14px;font-weight:600">'+txt+'</span></div>'}
+  else if(name==='头像名片'||name==='头像'){var nm=cfg&&cfg.name?cfg.name:'用户名称',bio=cfg&&cfg.bio?cfg.bio:'';body='<div class="mi-card-inline"><div class="mi-avatar2">U</div><div><div style="font-size:14px;font-weight:600">'+nm+'</div>'+(bio?'<div style="font-size:11px;color:#999">'+bio+'</div>':'')+'</div></div>'}
+  else if(name==='进度条'){var pct=cfg&&cfg.percent?cfg.percent:65,lb=cfg&&cfg.label?cfg.label:'完成进度';body='<div><div style="font-size:11px;color:#666;margin-bottom:4px">'+lb+' '+pct+'%</div><div class="mi-progress"><div class="mi-progress-bar" style="width:'+pct+'%"></div></div></div>'}
+  else if(name==='数字徽章'||name==='徽章'){var txt=cfg&&cfg.text?cfg.text:'NEW';body='<span class="mi-badge">'+txt+'</span>'}
+  else if(name==='引用卡片'||name==='引用块'){var qt=cfg&&cfg.quote?cfg.quote:'这段文字将被引用展示',src=cfg&&cfg.source?cfg.source:'';body='<div class="mi-quote">"'+qt+'"'+(src?'<div style="font-size:11px;color:#999;margin-top:4px">—— '+src+'</div>':'')+'</div>'}
+  else if(name==='联系方式卡'||name==='联系方式卡片'){var e=cfg&&cfg.email?cfg.email:'',p=cfg&&cfg.phone?cfg.phone:'',a=cfg&&cfg.address?cfg.address:'';body='<div class="mi-contact">'+(e?'<div>📧 '+e+'</div>':'')+(p?'<div>📱 '+p+'</div>':'')+(a?'<div>📍 '+a+'</div>':'')+'</div>'}
+  else if(name==='提示信息'){var tp=cfg&&cfg.alertType?cfg.alertType:'ok',msg=cfg&&cfg.msg?cfg.msg:'操作成功';body='<div class="mi-alert mi-alert-'+tp+'">'+(tp==='ok'?'✅ ':'⚠️ ')+msg+'</div>'}
+  else if(name==='代码块'){var code=cfg&&cfg.code?cfg.code:'function hello() {\n  return "Hello World";\n}',lang=cfg&&cfg.lang?cfg.lang:'javascript';body='<div class="mi-code"><div class="mi-code-lang">'+lang+'</div><pre>'+code.replace(/</g,'&lt;')+'</pre></div>'}
+  else if(name==='媒体展示'||name==='图片展示'||name==='视频嵌入'){var mt=cfg&&cfg.mediaType?cfg.mediaType:'image';if(mt==='video')body='<div class="mi-video"><div class="mi-video-btn">▶</div></div>';else body='<div class="mi-img-placeholder">🖼️ 图片预览区</div>'}
+  else if(name==='分栏布局'||name==='两栏布局'||name==='三栏布局'){var cn=cfg&&cfg.colsNum?cfg.colsNum:2,labels=cn===3?['左','中','右']:cn===4?['一','二','三','四']:['左','右'];body='<div style="display:flex;gap:'+(cfg&&cfg.gap||8)+'px">'+labels.map(function(l){return'<div class="mi-col" style="flex:1;height:36px;background:#eff6ff;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#3b82f6">'+l+'</div>'}).join('')+'</div>'}
+  else if(name==='时间线'){var nodes=(cfg&&cfg.nodes?cfg.nodes.split(',').map(function(t){return t.trim()}):['已完成','进行中','待开始']);body='<div class="mi-timeline">'+nodes.map(function(n,i){return'<div class="mi-tl-item"><span class="mi-tl-dot"'+(i===2?' style="background:#ccc"':'')+'></span>'+n+'</div>'}).join('')+'</div>'}
+  else if(name==='空状态'){body='<div style="text-align:center;padding:20px;color:#ccc"><div style="font-size:28px;margin-bottom:6px">'+(cfg&&cfg.icon||'📭')+'</div><div style="font-size:12px">'+(cfg&&cfg.text||'暂无数据')+'</div></div>'}
+  else if(name==='面包屑导航'){var p=(cfg&&cfg.path?cfg.path.split(',').map(function(t){return t.trim()}):['首页','分类','当前页']);body='<div class="mi-breadcrumb">'+p.map(function(s,i){return(i>0?' › ':'')+s}).join('')+'</div>'}
+  else if(name==='锚点导航'){var an=(cfg&&cfg.anchors?cfg.anchors.split(',').map(function(t){return t.trim()}):['概述','详情','评价']);body='<div class="mi-anchors" style="display:flex;gap:12px;font-size:12px">'+an.map(function(a){return'<span style="color:#3b82f6">'+a+'</span>'}).join('')+'</div>'}
+  else if(name==='音频播放') body='<div class="mi-audio" style="padding:12px;background:#f8f8f8;border-radius:6px;text-align:center;color:#999">🎵 音频播放器</div>'
+  else if(name==='轮播图') body='<div class="mi-carousel" style="display:flex;align-items:center;justify-content:space-between;padding:8px;background:#f0f0f0;border-radius:6px;color:#999;font-size:11px"><span>◀</span><div>🖼️ 1 / '+(cfg&&cfg.images?cfg.images.length:3)+'</div><span>▶</span></div>'
+  // 功能
+  else if(name==='数据表格') body='<table class="mi-table"><tr><th>名称</th><th>类型</th></tr><tr><td>项目A</td><td>前端</td></tr></table>'
+  else if(name==='分页导航'||name==='分页') body='<div class="mi-pages"><span class="mi-page">‹</span><span class="mi-page cur">1</span><span class="mi-page">2</span><span class="mi-page">3</span><span class="mi-page">›</span></div>'
+  else if(name==='倒计时') body='<div class="mi-countdown"><span>12</span>:<span>30</span>:<span>45</span></div>'
+  else if(name==='二维码') body='<div class="mi-qr">QR</div>'
+  else if(name==='地图嵌入') body='<div class="mi-map">📍 设置地址后显示</div>'
+  else if(name==='社交分享') body='<div class="mi-share"><span style="background:#3b82f6">f</span><span style="background:#1da1f2">t</span><span style="background:#25d366">w</span></div>'
+  else if(name==='图标框') body='<div class="mi-icon-box"><div class="mi-icon-sm">⭐</div><span class="mi-icon-lbl">功能名称</span></div>';
+  else if(name==='技能卡片') body='<div class="mi-skill-tags"><span class="mi-skill-tag" style="background:#667eea">HTML5</span><span class="mi-skill-tag" style="background:#27ae60">CSS3</span><span class="mi-skill-tag" style="background:#f39c12">JavaScript</span><span class="mi-skill-tag" style="background:#9b59b6">React</span></div>';
+  else if(name==='联系方式卡'||name==='联系方式卡片') body='<div class="mi-contact-text"><div class="ct-row"><span class="ct-ic">📧</span>contact@example.com</div><div class="ct-row"><span class="ct-ic">📱</span>+86 138-0000-0000</div><div class="ct-row"><span class="ct-ic">📍</span>中国·北京</div></div>';
+  else if(name==='头像') body='<div class="mi-avatar-wrap"><div class="mi-avatar">U</div><div><div class="mi-avatar-name">用户名</div><div style="font-size:12px;color:#999;margin-top:2px">用户简介</div></div></div>';
+  else if(name==='徽章') body='<div style="display:flex;gap:10px;align-items:center"><span class="mi-badge">新消息 3</span><span class="mi-badge" style="background:#f39c12">待处理 1</span><span class="mi-badge" style="background:#27ae60">已完成 12</span></div>';
+  else if(name==='进度条') body='<div class="mi-progress-wrap"><div class="mi-progress"><div class="mi-progress-bar"></div></div><div class="mi-progress-lbl"><span>完成度</span><span>65%</span></div></div>';
+  else if(name==='时间线') body='<div class="mi-tl"><div class="mi-tl-item"><span class="mi-tl-dot done"></span><div><div style="font-weight:600;color:#333">提交成功</div><div style="font-size:12px;color:#999">2026-07-29 10:00</div></div></div><div class="mi-tl-line"></div><div class="mi-tl-item"><span class="mi-tl-dot"></span><div><div style="color:#555">审核中</div><div style="font-size:12px;color:#999">预计 1-3 个工作日</div></div></div></div>';
+  else if(name==='引用块') body='<div class="mi-quote">"这是一段重要的引用文字，用于强调和突出展示。引用块适合在文章或文档中使用。"</div>';
+  else if(name==='通知提示') body='<div><div class="mi-alert ok">✅ 操作成功！数据已保存</div><div class="mi-alert warn" style="margin-top:8px">⚠️ 请注意：部分功能需要管理员权限</div></div>';
+  else if(name==='空状态') body='<div class="mi-empty"><div class="mi-empty-icon">📭</div><div>暂无数据</div><div style="font-size:12px;color:#ddd;margin-top:4px">点击新建按钮开始</div></div>';
+  // 布局组件
+  else if(name==='选项卡') body='<div><div class="mi-tabs"><span class="mi-tab on">选项一</span><span class="mi-tab">选项二</span><span class="mi-tab">选项三</span></div><div style="padding:20px 0;text-align:center;color:#ccc;font-size:14px">选项卡内容区域</div></div>';
+  else if(name==='折叠面板') body='<div class="mi-accordion"><div class="mi-acc-head"><span>📋 折叠面板标题</span><span style="color:#999">▼</span></div><div class="mi-acc-body">这里是折叠面板的内容区域，可以放置任意内容。</div></div>';
+  else if(name==='步骤条') body='<div><div class="mi-steps"><div class="mi-step-wrap"><div class="mi-step-done"><div class="mi-step-num">✓</div><div class="mi-step-label">填写信息</div></div></div><span class="mi-step-line" style="background:#27ae60"></span><div class="mi-step-wrap"><div><div class="mi-step-num">2</div><div class="mi-step-label">确认提交</div></div></div><span class="mi-step-line"></span><div class="mi-step-wrap"><div><div class="mi-step-num" style="background:#ccc">3</div><div class="mi-step-label">完成</div></div></div></div></div>';
+  else if(name==='分割线') body='<div class="mi-divider">✧ 分割线 ✧</div>';
+  // 功能组件
+  else if(name==='文件上传') body='<div class="mi-upload"><div style="font-size:32px;margin-bottom:8px">📁</div><div>拖拽文件到此处</div><div style="font-size:12px;color:#ddd;margin-top:4px">或点击选择文件</div></div>';
+  else if(name==='代码块') body='<div class="mi-code"><span style="color:#88d8b0">function</span> <span style="color:#ff6b6b">hello</span>(<span style="color:#ffeaa7">name</span>) {<br>&nbsp;&nbsp;<span style="color:#88d8b0">const</span> msg = <span style="color:#ffeaa7">`Hello, ${name}!`</span>;<br>&nbsp;&nbsp;<span style="color:#88d8b0">return</span> msg;<br>}<br><br>hello(<span style="color:#ffeaa7">"World"</span>);</div>';
+  else if(name==='视频嵌入') body='<div class="mi-video"><div class="mi-video-btn">▶</div></div>';
+  else if(name==='数据表格') body='<table class="mi-table"><tr><th>序号</th><th>名称</th><th>状态</th></tr><tr><td>1</td><td>项目 A</td><td style="color:#27ae60">进行中</td></tr><tr><td>2</td><td>项目 B</td><td style="color:#f39c12">待审核</td></tr><tr><td>3</td><td>项目 C</td><td style="color:#999">已完成</td></tr></table>';
+  else if(name==='分页') body='<div class="mi-pagination"><span class="mi-page">‹</span><span class="mi-page cur">1</span><span class="mi-page">2</span><span class="mi-page">3</span><span class="mi-page">...</span><span class="mi-page">8</span><span class="mi-page">›</span></div>';
+  else body='<div style="padding:12px;color:#ccc;font-size:14px;text-align:center">'+escH(name)+'</div>';
+  return'<div class="pv-mod-item'+spanCls+'" data-mi-idx="'+idx+'"><div class="mi-handle" data-drag="'+idx+'"><span class="mi-grip" data-drag="'+idx+'">⠿</span><span class="mi-lbl">'+escH(name)+'</span><div class="mi-wopts"><span class="mi-wbtn'+(span===1?' on':'')+'" data-set-span="'+idx+'_1">1</span><span class="mi-wbtn'+(span===2?' on':'')+'" data-set-span="'+idx+'_2">2</span><span class="mi-wbtn'+(span===3?' on':'')+'" data-set-span="'+idx+'_3">3</span><span class="mi-wbtn'+(span===4?' on':'')+'" data-set-span="'+idx+'_4">4</span></div><span class="mi-rm" data-rm="'+idx+'">×</span></div><div class="mi-body">'+body+'</div></div>';
+}
+</script>
+</body>
+</html>

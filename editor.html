@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>NavEditor</title>
+    <link rel="icon" id="consoleFavicon" href="assets/images/favicon.png">
+    <link rel="stylesheet" href="assets/fontawesome-5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="styles.css?v=1785715507">
+</head>
+<body>
+    <div id="app"></div>
+    <script>
+      // 单实例聚焦时携带 ?reload 参数，强制硬刷新以加载最新前端
+      (function () {
+        try {
+          var p = new URLSearchParams(window.location.search);
+          if (p.has('reload')) {
+            window.history.replaceState({}, '', window.location.pathname);
+            window.location.reload(true);
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <script src="lib/vue.global.js"></script>
+    <script src="lib/jszip.min.js"></script>
+    <script src="template/页脚/favicon-editor.js?v=1785715516"></script>
+    <script src="template.js?v=1785715512"></script>
+    <script src="app.js?v=1785715512"></script>
+</body>
+</html>

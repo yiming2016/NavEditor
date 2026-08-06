@@ -1,0 +1,5 @@
+# 运行时依赖
+paramiko>=3.0
+
+# 打包 exe（可选）
+PyInstaller>=6.0

@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+
+
+
+
+<html lang="zh-CN">
+
+
+
+
+
+
+
+
+
+<head>
+
+
+
+
+    <meta charset="UTF-8" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+
+
+
+
+    <meta http-equiv="X-UA-Compatible" content="IE=edge, chrome=1" />
+
+
+
+
+    <meta name="viewport"
+
+
+
+
+        content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+
+
+
+    <meta name="theme-color" content="#f9f9f9" />
+
+
+
+
+    <title>关于我们 - 在线工具网</title>
+
+
+
+
+    <link rel="shortcut icon" href="../../../assets/images/favicon.png" />
+
+
+
+
+    <meta name="keywords" content="在线工具网,关于我们" />
+
+
+
+
+    <meta name="description" content="在线网址导航, 各类开发工具、绘图绘画工具、md5、在线ps、base64、房贷计算器等" />
+
+
+
+
+
+
+
+
+
+    <link rel="stylesheet" id="block-library-css"
+
+
+
+
+        href="../../../assets/css/block-library.min-5.6.2.css" type="text/css" media="all" />
+
+
+
+
+    <link rel="stylesheet" id="iconfont-css" href="../../../assets/css/iconfont-3.03029.1.css"
+
+
+
+
+        type="text/css" media="all" />
+
+
+
+
+    <link rel="stylesheet" id="bootstrap-css" href="../../../assets/css/bootstrap.min-4.3.1.css"
+
+
+
+
+        type="text/css" media="all" />
+
+
+
+
+    <link rel="stylesheet" id="iowen-css" href="../../../assets/css/style-3.03029.1.css"
+
+
+
+
+        type="text/css" media="all" />
+
+
+
+
+    <link rel="stylesheet" id="custom-css" href="../../../assets/css/custom-style.css"
+
+
+
+
+        type="text/css" media="all" />
+
+
+
+
+    <link rel="stylesheet" id="fortawesome-css" href="../../../assets/fontawesome-5.15.4/css/all.min.css" type="text/css" />
+
+
+
+
+
+
+
+
+
+    <style>
+
+
+
+
+        body {
+
+
+
+
+            background: #f5f7fa;
+
+
+
+
+            padding: 20px 0;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .about-container {
+
+
+
+
+            max-width: 900px;
+
+
+
+
+            margin: 50px auto;
+
+
+
+
+            background: #fff;
+
+
+
+
+            border-radius: 8px;
+
+
+
+
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+
+
+
+
+            overflow: hidden;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .about-header {
+
+
+
+
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+
+
+
+            color: white;
+
+
+
+
+            padding: 40px 30px;
+
+
+
+
+            text-align: center;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .about-header h1 {
+
+
+
+
+            font-size: 32px;
+
+
+
+
+            margin: 0 0 10px 0;
+
+
+
+
+            font-weight: 600;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .about-header p {
+
+
+
+
+            font-size: 16px;
+
+
+
+
+            margin: 0;
+
+
+
+
+            opacity: 0.9;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .about-content {
+
+
+
+
+            padding: 40px 30px;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .section {
+
+
+
+
+            margin-bottom: 35px;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .section:last-child {
+
+
+
+
+            margin-bottom: 0;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .section-title {
+
+
+
+
+            font-size: 22px;
+
+
+
+
+            color: #333;
+
+
+
+
+            margin-bottom: 15px;
+
+
+
+
+            padding-bottom: 10px;
+
+
+
+
+            border-bottom: 2px solid #f0f0f0;
+
+
+
+
+            display: flex;
+
+
+
+
+            align-items: center;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .section-title i {
+
+
+
+
+            margin-right: 10px;
+
+
+
+
+            color: #667eea;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .section-title i,
+
+
+
+
+        .sec-title {
+
+
+
+
+            cursor: pointer;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .section-content {
+
+
+
+
+            font-size: 15px;
+
+
+
+
+            line-height: 1.8;
+
+
+
+
+            color: #555;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .section-content p {
+
+
+
+
+            margin-bottom: 15px;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .section-content p:last-child {
+
+
+
+
+            margin-bottom: 0;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .skills-grid {
+
+
+
+
+            display: grid;
+
+
+
+
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+
+
+
+
+            gap: 15px;
+
+
+
+
+            margin-top: 20px;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .skill-item {
+
+
+
+
+            background: #f8f9fa;
+
+
+
+
+            padding: 15px;
+
+
+
+
+            border-radius: 6px;
+
+
+
+
+            text-align: center;
+
+
+
+
+            transition: transform 0.3s, box-shadow 0.3s;
+
+
+
+
+            position: relative;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .skill-item:hover {
+
+
+
+
+            transform: translateY(-3px);
+
+
+
+
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .skill-item i {
+
+
+
+
+            font-size: 28px;
+
+
+
+
+            color: #667eea;
+
+
+
+
+            margin-bottom: 8px;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .skill-item .skill-name {
+
+
+
+
+            font-weight: 600;
+
+
+
+
+            color: #333;
+
+
+
+
+            font-size: 14px;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .contact-list {
+
+
+
+
+            list-style: none;
+
+
+
+
+            padding: 0;
+
+
+
+
+            margin: 20px 0 0 0;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .contact-list li {
+
+
+
+
+            padding: 12px 15px;
+
+
+
+
+            margin-bottom: 10px;
+
+
+
+
+            background: #f8f9fa;
+
+
+
+
+            border-radius: 6px;
+
+
+
+
+            display: flex;
+
+
+
+
+            align-items: center;
+
+
+
+
+            transition: background 0.3s;
+
+
+
+
+            position: relative;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .contact-list li:hover {
+
+
+
+
+            background: #e9ecef;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .contact-list li i {
+
+
+
+
+            margin-right: 12px;
+
+
+
+
+            color: #667eea;
+
+
+
+
+            width: 20px;
+
+
+
+
+            text-align: center;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .contact-list li strong {
+
+
+
+
+            color: #333;
+
+
+
+
+            margin-right: 8px;
+
+
+
+
+            min-width: 80px;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .contact-list li a {
+
+
+
+
+            color: #667eea;
+
+
+
+
+            text-decoration: none;
+
+
+
+
+            word-break: break-all;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .contact-list li a:hover {
+
+
+
+
+            text-decoration: underline;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .back-home {
+
+
+
+
+            text-align: center;
+
+
+
+
+            padding: 30px;
+
+
+
+
+            background: #f8f9fa;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .back-home a {
+
+
+
+
+            display: inline-block;
+
+
+
+
+            padding: 10px 30px;
+
+
+
+
+            background: #667eea;
+
+
+
+
+            color: white;
+
+
+
+
+            text-decoration: none;
+
+
+
+
+            border-radius: 25px;
+
+
+
+
+            transition: background 0.3s, transform 0.3s;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .back-home a:hover {
+
+
+
+
+            background: #5568d3;
+
+
+
+
+            transform: translateY(-2px);
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .back-home a i {
+
+
+
+
+            margin-right: 8px;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .highlight-box {
+
+
+
+
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+
+
+
+
+            border-left: 4px solid #667eea;
+
+
+
+
+            padding: 20px;
+
+
+
+
+            border-radius: 6px;
+
+
+
+
+            margin: 20px 0;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .highlight-box p {
+
+
+
+
+            margin: 0;
+
+
+
+
+            color: #555;
+
+
+
+
+            line-height: 1.8;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .about-ads-row {
+
+
+
+
+            display: flex;
+
+
+
+
+            gap: 16px;
+
+
+
+
+            padding: 0 30px 30px;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        .about-ads-row > div {
+
+
+
+
+            flex: 1;
+
+
+
+
+            min-width: 0;
+
+
+
+
+        }
+
+
+
+
+
+
+
+
+
+        @media (max-width: 768px) {
+
+
+
+
+            .about-container {
+
+
+
+
+                margin: 20px;
+
+
+
+
+            }
+
+
+
+
+
+
+
+
+
+            .about-header {
+
+
+
+
+                padding: 30px 20px;
+
+
+
+
+            }
+
+
+
+
+
+
+
+
+
+            .about-header h1 {
+
+
+
+
+                font-size: 26px;
+
+
+
+
+            }
+
+
+
+
+
+
+
+
+
+            .about-content {
+
+
+
+
+                padding: 30px 20px;
+
+
+
+
+            }
+
+
+
+
+
+
+
+
+
+            .skills-grid {
+
+
+
+
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+
+
+
+
+            }
+
+
+
+
+
+
+
+
+
+            .about-ads-row {
+
+
+
+
+                flex-direction: column;
+
+
+
+
+            }
+
+
+
+
+        }
+
+
+
+
+    </style>
+
+
+
+
+
+
+
+
+
+    <script>
+
+
+
+
+        !function(p){"use strict";!function(t){var s=window,e=document,i=p,c="".concat("https:"===e.location.protocol?"https://":"http://","sdk.51.la/js-sdk-pro.min.js"),n=e.createElement("script"),r=e.getElementsByTagName("script")[0];n.type="text/javascript",n.setAttribute("charset","UTF-8"),n.async=!0,n.src=c,n.id="LA_COLLECT",i.d=n;var o=function(){s.LA.ids.push(i)};s.LA?s.LA.ids&&o():(s.LA=p,s.LA.ids=[],o()),r.parentNode.insertBefore(n,r)}()}({id:"3G9QRCtAm0z4ABfe",ck:"3G9QRCtAm0z4ABfe"});
+
+
+
+
+    </script>
+
+
+
+
+</head>
+
+
+
+
+
+
+
+
+
+<body class="io-grey-mode">
+
+
+
+
+    <div class="about-container">
+
+
+
+
+        <div class="about-header" id="aboutHeader">
+
+
+
+
+            <h1 data-about-field="title"><i class="fas fa-user-circle" data-header-icon contenteditable="false"></i> 关于作者</h1>
+
+
+
+
+            <p data-about-field="subtitle">热爱技术，专注于软件开发与创新</p>
+
+
+
+
+        </div>
+
+
+
+
+
+
+
+
+
+        <div class="about-content">
+
+
+
+
+            <!-- 板块由 about/edit.js 根据数据动态渲染（可排序 / 增删 / 改标题图标） -->
+
+
+
+
+            <div id="aboutSections"></div>
+
+
+
+
+
+
+
+
+
+            <!-- 广告位（编辑模式下由关于页编辑工具栏管理） -->
+
+
+
+
+            <div class="about-ads-row">
+
+
+
+
+                <div id="aboutLeftAds"></div>
+
+
+
+
+                <div id="aboutRightAds"></div>
+
+
+
+
+            </div>
+
+
+
+
+        </div>
+
+
+
+
+    </div>
+
+
+
+
+
+
+
+
+
+    <script src="../../../assets/js/jquery.min-3.2.1.js"></script>
+
+
+
+
+    
+
+
+
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    <script id="aboutSeed" type="application/json">{"about":{"title":"关于作者","subtitle":"热爱技术，专注于软件开发与创新","intro":"","introHtml":"","introMode":"html","skills":[{"icon":"fab fa-java","name":"Java / Spring Boot"},{"icon":"fab fa-python","name":"Python"},{"icon":"fab fa-js","name":"JavaScript"},{"icon":"fas fa-database","name":"MySQL / Oracle"}],"philosophy":"","philosophyHtml":"<p><\/p>","philosophyMode":"html","contacts":[{"icon":"fab fa-github","label":"GitHub:","value":"https://github.com/geeeeeeeek","link":"https://github.com/geeeeeeeek"},{"icon":"fas fa-globe","label":"个人主页:","value":"https://web.gitapp.cn","link":"https://web.gitapp.cn"},{"icon":"fas fa-envelope","label":"邮箱:","value":"kefu308@gmail.com","link":"//kefu308@gmail.com"}],"leftAds":[],"rightAds":[],"sections":[{"id":"smsapxbp40","type":"text","icon":"fas fa-star","title":"新模板","content":{"richHtml":"","items":[]},"modules":[],"_pvCols":[],"_comboCat":"tms7tongpgxyn","_comboVer":"tms7tooalm1dg"},{"id":"smsapxdwj1","type":"form","icon":"fas fa-paper-plane","title":"提交网站","content":{"richHtml":"","items":[]},"modules":[{"name":"单行输入框","config":{"label":"<b>网站名称<\/b>","placeholder":"请输入网站名称","inputType":"text","required":true,"cols":2}},{"name":"单行输入框","config":{"label":"<b>网站地址<\/b>","placeholder":"https://example.com","inputType":"url","required":true,"cols":2}},{"name":"选择器","config":{"label":"<b>网站分类<\/b>","selType":"dropdown","options":["科技","教育","娱乐","购物","工具","其他"],"required":true,"cols":2}},{"name":"选择器","config":{"label":"<b>语言<\/b>","selType":"radio","options":["中文","English","日本語"],"cols":2}},{"name":"多行输入框","config":{"label":"<b>网站简介<\/b>","placeholder":"请简要描述网站内容与特色...","rows":4,"required":true,"cols":4}},{"name":"单行输入框","config":{"label":"<b>联系邮箱<\/b>","placeholder":"name@example.com","inputType":"email","required":true,"cols":2}},{"name":"单行输入框","config":{"label":"<b>标签关键词<\/b>","placeholder":"用逗号分隔多个关键词","inputType":"text","cols":2}}],"_pvCols":[2,2,2,2,4,2,2],"_comboCat":"__preset_website","_comboVer":"tpl_form_standard"}],"headerIcon":"fas fa-user-circle","headerBg":"","topAds":[]},"site":{}}</script>
+    <script src="/template/页脚/favicon-editor.js?v=1785715516"></script>
+    <script>
+      // 强制每次打开都重新拉取最新 edit.js，彻底规避 CEF/浏览器缓存导致前端修改不生效
+      document.write('<script src="./edit.js?v=1785705771&_cb=' + Date.now() + '"><\/script>');
+    </script>
+
+
+
+
+
+
+
+</body>
+
+
+
+
+
+
+
+
+
+</html>
+
+
+
+

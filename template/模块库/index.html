@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>模块库 - NavEditor</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#f5f7fa;color:#333;min-height:100vh}
+.header{background:linear-gradient(135deg,#3b82f6,#2563eb);padding:14px 32px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
+.header .hd-left{display:flex;align-items:center;gap:12px;flex:1}
+.header h1{font-size:20px;font-weight:700;color:#fff}
+.header p{font-size:12px;color:rgba(255,255,255,.7)}
+.header .hd-actions{display:flex;gap:8px;flex-shrink:0}
+.hd-btn{padding:7px 18px;font-size:13px;border-radius:7px;border:none;text-decoration:none;font-weight:500;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center}
+.hd-btn.tpl{background:#27ae60;color:#fff}.hd-btn.tpl:hover{background:#219a52}
+.nav-bar{background:#fff;border-bottom:1px solid #e8ecf1;padding:0 32px;display:flex;gap:4px;flex-wrap:wrap}
+.nav-chip{padding:10px 16px;font-size:13px;cursor:pointer;border:none;background:none;color:#888;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;display:flex;align-items:center;gap:5px}
+.nav-chip:hover{color:#3b82f6}
+.nav-chip.active{color:#3b82f6;border-bottom-color:#3b82f6;font-weight:600}
+.content{padding:20px 32px}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+.card{background:#fff;border-radius:12px;border:1px solid #e8ecf1;overflow:hidden;transition:box-shadow .2s;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.card:hover{box-shadow:0 4px 16px rgba(59,130,246,.1)}
+.card-preview{height:120px;display:flex;align-items:center;justify-content:center;padding:16px;background:#f8fafc;border-bottom:1px solid #f2f4f7}
+.card-body{padding:14px 16px}
+.card-top{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.card-name{font-size:14px;font-weight:600;color:#1a1a2e}
+.card-role{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:500;flex-shrink:0}
+.card-role.visitor{background:#e8f5e9;color:#27ae60}
+.card-role.editor{background:#eff6ff;color:#3b82f6}
+.card-desc{font-size:12px;color:#999;line-height:1.5;margin-bottom:8px}
+.card-config{font-size:10px;color:#bbb;background:#fafbfc;padding:4px 8px;border-radius:4px;line-height:1.4}
+@media(max-width:640px){.card-grid{grid-template-columns:1fr}.content{padding:14px 16px}.header{padding:12px 16px}.nav-bar{padding:0 16px}}
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+<div class="header">
+<div class="hd-left"><h1>模块库</h1><p>每个模块通过设置面板定制行为 · 无重复、全可配</p></div>
+<div class="hd-actions"><a href="../模版库/index.html" class="hd-btn tpl">模版库</a></div>
+</div>
+<div class="nav-bar" id="nav"></div>
+<div class="content"><div class="card-grid" id="content"></div></div>
+
+<script>
+var MODULES = [
+  // ===== 访客输入（5个） =====
+  {cat:'input',name:'单行输入框',desc:'万用输入框——类型可切：文字/邮箱/网址/手机/数字/密码，可设占位提示、必填',role:'visitor',roleText:'访客填写',config:'可设：标签名/输入类型(文字/邮箱/网址/手机/数字/密码)/占位文字/必填/最大长度',preview:'<input class="pv-input" value="请输入..." readonly>'},
+  {cat:'input',name:'多行输入框',desc:'长文输入——可设行数、字数上限、占位提示',role:'visitor',roleText:'访客填写',config:'可设：标签名/占位文字/行数/最大字数/必填',preview:'<textarea class="pv-textarea" rows="3" readonly>请输入详细内容...</textarea>'},
+  {cat:'input',name:'选择器',desc:'万用选择——可设下拉/单选/多选，自由编辑选项列表',role:'visitor',roleText:'访客选择',config:'可设：标签名/类型(下拉/单选/多选)/选项列表/默认值/必选',preview:'<select class="pv-select"><option>请选择...</option><option>选项 A</option><option>选项 B</option></select>'},
+  {cat:'input',name:'日期时间',desc:'日期或时间选择——可切类型、设默认值、设范围',role:'visitor',roleText:'访客选择',config:'可设：标签名/类型(日期/时间/日期时间)/默认值/最小/最大',preview:'<input class="pv-input" type="date" value="2026-07-30" readonly>'},
+  {cat:'input',name:'文件上传',desc:'文件/图片/文档上传——可设允许类型、大小上限',role:'visitor',roleText:'访客上传',config:'可设：标签名/允许类型(image/*或.pdf或*)/最大文件大小/KB',preview:'<div class="pv-upload">📁 点击或拖拽上传</div>'},
+  // ===== 交互控件（5个） =====
+  {cat:'control',name:'开关切换',desc:'布尔开关——可设标签、默认开/关',role:'visitor',roleText:'访客切换',config:'可设：标签名/默认开启或关闭',preview:'<div class="pv-toggle"></div>'},
+  {cat:'control',name:'范围滑块',desc:'数值滑块——可设范围、步长、默认值、标签',role:'visitor',roleText:'访客调节',config:'可设：标签名/最小值/最大值/默认值/步长',preview:'<div class="pv-slider-wrap"><div class="pv-slider"><div class="pv-slider-bar"></div></div><span class="pv-slider-val">65</span></div>'},
+  {cat:'control',name:'评分组件',desc:'星级评分——可设满分、默认分',role:'visitor',roleText:'访客评分',config:'可设：标签名/满分星级(5或10)/默认评分',preview:'<div class="pv-stars">★★★★☆</div>'},
+  {cat:'control',name:'颜色选择',desc:'颜色拾取器——可设标签、默认色',role:'visitor',roleText:'访客选择',config:'可设：标签名/默认颜色',preview:'<input class="pv-color" type="color" value="#3b82f6">'},
+  {cat:'control',name:'搜索框',desc:'带图标的搜索输入——可设占位、宽度',role:'visitor',roleText:'访客填写',config:'可设：占位文字/宽度',preview:'<input class="pv-search" placeholder="搜索关键词..." readonly>'},
+  // ===== 内容展示（14个） =====
+  {cat:'display',name:'富文本段落',desc:'编辑器填写的格式化内容（标题/列表/链接等）',role:'editor',roleText:'编辑配置',config:'可设：文字内容/对齐方式/字体大小',preview:'<div class="pv-rich"><strong>标题文字</strong><p style="font-size:12px;color:#999;margin-top:4px">正文内容可设格式和颜色...</p></div>'},
+  {cat:'display',name:'图标标题组',desc:'图标+标题组合——可设图标、文字、对齐',role:'editor',roleText:'编辑配置',config:'可设：图标/标题文字/对齐方式',preview:'<div class="pv-icon-box"><div class="pv-icon2">⭐</div><span style="font-size:14px;font-weight:600">标题文字</span></div>'},
+  {cat:'display',name:'头像名片',desc:'头像+名字+简介卡片——可设名称、简介',role:'editor',roleText:'编辑配置',config:'可设：头像文字/名称/简介',preview:'<div class="pv-card-inline"><div class="pv-avatar2">U</div><div><div style="font-size:14px;font-weight:600">用户名称</div><div style="font-size:11px;color:#999">一句话简介</div></div></div>'},
+  {cat:'display',name:'标签组',desc:'展示/输入标签——可切模式、设文字和颜色',role:'editor',roleText:'编辑配置',config:'可设：模式(展示/可输入)/标签文字(逗号分隔)/颜色',preview:'<div class="pv-skills"><span class="pv-skill-tag" style="background:#3b82f6">前端开发</span><span class="pv-skill-tag" style="background:#2563eb">UI设计</span><span class="pv-skill-tag" style="background:#f5576c">产品思维</span></div>'},
+  {cat:'display',name:'进度条',desc:'百分比进度展示——可设数值、标签、颜色',role:'editor',roleText:'编辑配置',config:'可设：百分比数值/标签文字/进度条颜色',preview:'<div><div style="font-size:11px;color:#666;margin-bottom:4px">完成进度 65%</div><div class="pv-progress"><div class="pv-progress-bar"></div></div></div>'},
+  {cat:'display',name:'数字徽章',desc:'角标/状态标记——可设文字、颜色、大小',role:'editor',roleText:'编辑配置',config:'可设：徽章文字/颜色/大小',preview:'<span class="pv-badge">NEW</span><span class="pv-badge" style="background:#3b82f6;margin-left:6px">3</span>'},
+  {cat:'display',name:'引用卡片',desc:'突出显示的引用——可设文字、来源、颜色',role:'editor',roleText:'编辑配置',config:'可设：引用文字/来源/颜色',preview:'<div class="pv-quote">"这段文字将被突出引用展示，吸引读者注意力"</div>'},
+  {cat:'display',name:'联系方式卡',desc:'邮箱/电话/地址展示——可选填各字段',role:'editor',roleText:'编辑配置',config:'可设：邮箱/电话/地址/微信',preview:'<div class="pv-contact-preview">📧 contact@example.com<br>📱 138-0000-0000<br>📍 北京市朝阳区</div>'},
+  {cat:'display',name:'媒体展示',desc:'图片或视频展示——可设链接、替代文字、圆角',role:'editor',roleText:'编辑配置',config:'可设：类型(图片/视频)/链接/替代文字/圆角/宽度',preview:'<div class="pv-img-placeholder">🖼️ 图片预览区</div>'},
+  {cat:'display',name:'提示信息',desc:'成功/警告/提示条——可设类型、文字、是否可关闭',role:'editor',roleText:'编辑配置',config:'可设：类型(成功/警告/信息)/文字内容/是否可关闭',preview:'<div><div class="pv-alert ok">✅ 操作成功完成</div><div class="pv-alert warn" style="margin-top:4px">⚠️ 请检查输入内容</div></div>'},
+  {cat:'display',name:'代码块',desc:'带语法高亮的代码展示——可设语言、内容',role:'editor',roleText:'编辑配置',config:'可设：代码内容/语言类型/是否可复制',preview:'<div class="pv-code">function hello() {<br>  return "Hello World";<br>}</div>'},
+  {cat:'display',name:'统计数据',desc:'大数字+标签的数据展示——可设数字、标签',role:'editor',roleText:'编辑配置',config:'可设：数字/标签文字/颜色',preview:'<div class="pv-stat"><div class="pv-stat-num">12,850</div><div class="pv-stat-label">累计用户</div></div>'},
+  {cat:'display',name:'时间线',desc:'事件/流程时间线——可设节点列表',role:'editor',roleText:'编辑配置',config:'可设：节点文字(逗号分隔)/颜色',preview:'<div class="pv-tl-wrap"><div class="pv-tl-row"><span class="pv-tl-dot"></span>已完成</div><div class="pv-tl-row"><span class="pv-tl-dot"></span>进行中</div><div class="pv-tl-row"><span class="pv-tl-dot" style="background:#ccc"></span>待开始</div></div>'},
+  {cat:'display',name:'空状态',desc:'无数据时的占位提示——可设图标、文字',role:'editor',roleText:'编辑配置',config:'可设：图标/提示文字',preview:'<div style="text-align:center;padding:20px;color:#ccc"><div style="font-size:32px;margin-bottom:8px">📭</div><div style="font-size:12px">暂无数据</div></div>'},
+  // ===== 布局结构（8个） =====
+  {cat:'layout',name:'选项卡切换',desc:'多面板切换——可设标签列表、默认激活',role:'editor',roleText:'编辑配置',config:'可设：标签名(逗号分隔)/默认激活项',preview:'<div class="pv-tabs"><span class="pv-tab active">介绍</span><span class="pv-tab">详情</span><span class="pv-tab">评价</span></div>'},
+  {cat:'layout',name:'折叠面板',desc:'可展开/收起的区域——可设标题、默认状态',role:'editor',roleText:'编辑配置',config:'可设：标题/默认展开或收起',preview:'<div class="pv-accordion"><div class="pv-acc-head">常见问题 ▼</div><div class="pv-acc-body">这里是折叠面板的内容区域</div></div>'},
+  {cat:'layout',name:'步骤进度条',desc:'流程步骤指示——可设步骤名、当前步',role:'editor',roleText:'编辑配置',config:'可设：步骤名称(逗号分隔)/当前步骤',preview:'<div class="pv-steps"><span class="pv-step done">1<span>确认</span></span><span class="pv-step-line" style="background:#3b82f6"></span><span class="pv-step active">2<span>填写</span></span><span class="pv-step-line"></span><span class="pv-step">3<span>完成</span></span></div>'},
+  {cat:'layout',name:'分割线',desc:'内容分隔线——可设文字、颜色、粗细',role:'editor',roleText:'编辑配置',config:'可设：中间文字/颜色/粗细',preview:'<div class="pv-divider"><span>分割线</span></div>'},
+  {cat:'layout',name:'间距占位',desc:'留出空白间距——可设高度',role:'editor',roleText:'编辑配置',config:'可设：高度(px)',preview:'<div style="height:30px;background:#f0f0f0;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#ccc;width:200px">间距 30px</div>'},
+  {cat:'layout',name:'分栏布局',desc:'多栏并排——可设栏数、比例、间距',role:'editor',roleText:'编辑配置',config:'可设：栏数(2/3/4)/比例/间距(px)',preview:'<div style="display:flex;gap:8px;width:200px"><div style="flex:1;height:36px;background:#eff6ff;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#3b82f6">左</div><div style="flex:1;height:36px;background:#eff6ff;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#3b82f6">右</div></div>'},
+  {cat:'layout',name:'面包屑导航',desc:'层级路径导航——可设路径列表',role:'editor',roleText:'编辑配置',config:'可设：路径(逗号分隔)/分隔符',preview:'<div style="font-size:12px;color:#3b82f6">首页 › 分类 › 当前页</div>'},
+  {cat:'layout',name:'锚点导航',desc:'页面内部跳转链接——可设锚点名',role:'editor',roleText:'编辑配置',config:'可设：锚点文字/链接ID',preview:'<div style="display:flex;gap:12px;font-size:12px"><span style="color:#3b82f6">概述</span><span style="color:#999">详情</span><span style="color:#999">评价</span></div>'},
+  // ===== 功能增强（8个） =====
+  {cat:'func',name:'数据表格',desc:'结构化表格——可设行列、标题',role:'editor',roleText:'编辑配置',config:'可设：列名(逗号分隔)/行数/是否带边框',preview:'<table class="pv-table"><tr><th>名称</th><th>类型</th><th>日期</th></tr><tr><td>项目A</td><td>前端</td><td>07-30</td></tr></table>'},
+  {cat:'func',name:'分页导航',desc:'页码导航——可设总页、当前页',role:'editor',roleText:'编辑配置',config:'可设：总页数/当前页',preview:'<div class="pv-pages"><span class="pv-page">‹</span><span class="pv-page cur">1</span><span class="pv-page">2</span><span class="pv-page">3</span><span class="pv-page">›</span></div>'},
+  {cat:'func',name:'倒计时',desc:'活动倒计时——可设目标日期',role:'editor',roleText:'编辑配置',config:'可设：目标日期时间/显示格式',preview:'<div class="pv-countdown"><span>12</span>:<span>30</span>:<span>45</span></div>'},
+  {cat:'func',name:'二维码',desc:'生成二维码——可设链接、大小',role:'editor',roleText:'编辑配置',config:'可设：链接/尺寸/颜色',preview:'<div class="pv-qr">QR</div>'},
+  {cat:'func',name:'地图嵌入',desc:'嵌入地图位置——可设地址、缩放',role:'editor',roleText:'编辑配置',config:'可设：地址/缩放级别/高度',preview:'<div class="pv-map-placeholder">📍 设置地址后显示</div>'},
+  {cat:'func',name:'社交分享',desc:'分享按钮组——可设链接、平台',role:'editor',roleText:'编辑配置',config:'可设：分享链接/标题/选择平台',preview:'<div class="pv-share"><span style="background:#3b82f6">f</span><span style="background:#1da1f2">t</span><span style="background:#25d366">w</span></div>'},
+  {cat:'func',name:'音频播放',desc:'嵌入音频播放器——可设链接',role:'editor',roleText:'编辑配置',config:'可设：音频链接/是否自动播放',preview:'<div class="pv-audio">🎵 音频播放器</div>'},
+  {cat:'func',name:'轮播图',desc:'多张图片轮播——可设图片列表',role:'editor',roleText:'编辑配置',config:'可设：图片链接(换行分隔)/切换间隔/是否自动播放',preview:'<div class="pv-carousel"><span>◀</span><div style="flex:1;text-align:center;font-size:10px">🖼️ 1 / 3</div><span>▶</span></div>'},
+];
+
+var cats=[
+  {id:'all',name:'全部',emoji:'📦'},
+  {id:'input',name:'访客输入',emoji:'⌨️'},
+  {id:'control',name:'交互控件',emoji:'🎮'},
+  {id:'display',name:'内容展示',emoji:'📋'},
+  {id:'layout',name:'布局结构',emoji:'📐'},
+  {id:'func',name:'功能增强',emoji:'⚙️'}
+];
+
+var cur='all';
+var navEl=document.getElementById('nav');
+navEl.innerHTML=cats.map(function(c){return'<span class="nav-chip'+(c.id===cur?' active':'')+'" data-cat="'+c.id+'"><span>'+c.emoji+'</span>'+c.name+'</span>'}).join('');
+navEl.addEventListener('click',function(e){var chip=e.target.closest('.nav-chip');if(!chip)return;cur=chip.getAttribute('data-cat');navEl.querySelectorAll('.nav-chip').forEach(function(c){c.classList.toggle('active',c.getAttribute('data-cat')===cur)});render()});
+
+function render(){
+  var list=cur==='all'?MODULES:MODULES.filter(function(m){return m.cat===cur});
+  document.getElementById('content').innerHTML=list.map(function(m){
+    return'<div class="card"><div class="card-preview">'+m.preview+'</div><div class="card-body"><div class="card-top"><span class="card-name">'+m.name+'</span><span class="card-role '+(m.role==='visitor'?'visitor':'editor')+'">'+m.roleText+'</span></div><div class="card-desc">'+m.desc+'</div><div class="card-config">'+m.config+'</div></div></div>';
+  }).join('');
+}
+render();
+
+var s=document.createElement('style');s.textContent=''
++'.pv-input{width:220px;padding:8px 12px;border:1px solid #ddd;border-radius:7px;font-size:13px;color:#999;background:#fff}'
++'.pv-textarea{width:220px;padding:8px 12px;border:1px solid #ddd;border-radius:7px;font-size:13px;resize:none;color:#999}'
++'.pv-select{width:200px;padding:8px 12px;border:1px solid #ddd;border-radius:7px;font-size:13px;color:#666;background:#fff}'
++'.pv-color{width:50px;height:32px;border:1px solid #ddd;border-radius:7px;cursor:pointer}'
++'.pv-slider-wrap{display:flex;align-items:center;gap:8px}'
++'.pv-slider{width:140px;height:6px;border-radius:3px;background:#e0e0e0;position:relative}'
++'.pv-slider-bar{position:absolute;top:-5px;left:65%;width:16px;height:16px;background:#3b82f6;border-radius:50%}'
++'.pv-slider-val{font-size:12px;color:#3b82f6;font-weight:600}'
++'.pv-toggle{width:42px;height:22px;border-radius:11px;background:#3b82f6;position:relative}'
++'.pv-toggle::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;background:#fff;border-radius:50%}'
++'.pv-upload{width:200px;padding:20px;border:2px dashed #ddd;border-radius:8px;text-align:center;color:#ccc;font-size:12px}'
++'.pv-stars{display:flex;gap:2px;color:#f0c040;font-size:18px}'
++'.pv-search{width:180px;padding:7px 10px 7px 30px;border:1px solid #ddd;border-radius:20px;font-size:12px;color:#999}'
++'.pv-rich{width:200px;padding:8px 10px;background:#fff;border-radius:6px;border:1px solid #f0f0f0}'
++'.pv-icon-box{display:flex;align-items:center;gap:8px}'
++'.pv-icon2{width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,#3b82f6,#2563eb);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px}'
++'.pv-card-inline{display:flex;align-items:center;gap:8px}'
++'.pv-avatar2{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#f093fb,#f5576c);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:bold}'
++'.pv-skills{display:flex;gap:4px;flex-wrap:wrap}'
++'.pv-skill-tag{padding:3px 8px;border-radius:4px;font-size:11px;color:#fff}'
++'.pv-progress{width:180px;height:8px;border-radius:4px;background:#e8e8e8;overflow:hidden}'
++'.pv-progress-bar{height:100%;width:65%;background:linear-gradient(90deg,#3b82f6,#2563eb);border-radius:4px}'
++'.pv-badge{padding:3px 8px;border-radius:10px;font-size:11px;color:#fff;background:#e74c3c}'
++'.pv-quote{border-left:3px solid #3b82f6;padding:6px 10px;background:#eff6ff;font-size:11px;color:#666;font-style:italic;border-radius:0 4px 4px 0;width:200px}'
++'.pv-contact-preview{font-size:11px;color:#666;line-height:1.8}'
++'.pv-img-placeholder{width:180px;height:60px;background:#f0f2ff;border:1px dashed #c4d0f0;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:12px}'
++'.pv-alert{padding:6px 10px;border-radius:4px;font-size:11px;width:200px}'
++'.pv-alert.ok{background:#d4edda;color:#155724}'
++'.pv-alert.warn{background:#fff3cd;color:#856404}'
++'.pv-code{width:180px;padding:6px 10px;background:#2d2d2d;color:#f8c040;font-family:monospace;font-size:10px;border-radius:4px}'
++'.pv-stat{text-align:center}'
++'.pv-stat-num{font-size:22px;font-weight:700;color:#3b82f6}'
++'.pv-stat-label{font-size:11px;color:#999}'
++'.pv-tl-wrap{display:flex;flex-direction:column;gap:6px}'
++'.pv-tl-row{display:flex;align-items:center;gap:8px;font-size:11px;color:#666}'
++'.pv-tl-dot{width:6px;height:6px;border-radius:50%;background:#3b82f6}'
++'.pv-tabs{display:flex;width:200px}'
++'.pv-tab{padding:4px 10px;font-size:11px;border:1px solid #ddd;background:#fafafa;color:#999}'
++'.pv-tab:first-child{border-radius:4px 0 0 4px}'
++'.pv-tab:last-child{border-radius:0 4px 4px 0}'
++'.pv-tab.active{background:#3b82f6;color:#fff;border-color:#3b82f6}'
++'.pv-accordion{width:180px;border:1px solid #e0e0e0;border-radius:4px;overflow:hidden}'
++'.pv-acc-head{padding:6px 10px;background:#fafafa;font-size:11px;font-weight:600;display:flex;justify-content:space-between}'
++'.pv-acc-body{padding:6px 10px;font-size:10px;color:#999;border-top:1px solid #e0e0e0}'
++'.pv-steps{display:flex;align-items:center;gap:0}'
++'.pv-step{display:flex;flex-direction:column;align-items:center;gap:2px}'
++'.pv-step span:first-child{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:700}'
++'.pv-step.active span:first-child{background:#3b82f6}'
++'.pv-step.done span:first-child{background:#27ae60}'
++'.pv-step:not(.active):not(.done) span:first-child{background:#ccc}'
++'.pv-step span:last-child{font-size:9px;color:#999}'
++'.pv-step-line{width:24px;height:2px;background:#e0e0e0;margin-bottom:14px}'
++'.pv-divider{width:180px;display:flex;align-items:center;gap:8px;font-size:10px;color:#ccc}'
++'.pv-divider::before,.pv-divider::after{content:"";flex:1;height:1px;background:#e0e0e0}'
++'.pv-pages{display:flex;gap:3px}'
++'.pv-page{padding:3px 8px;border:1px solid #ddd;border-radius:3px;font-size:11px;color:#666}'
++'.pv-page.cur{background:#3b82f6;color:#fff;border-color:#3b82f6}'
++'.pv-table{border-collapse:collapse;width:180px;font-size:10px}'
++'.pv-table th{background:#f5f5f5;padding:3px 5px;border:1px solid #e0e0e0;font-weight:600;color:#666;text-align:left}'
++'.pv-table td{padding:3px 5px;border:1px solid #e0e0e0;color:#999}'
++'.pv-countdown{display:flex;gap:4px;align-items:center;font-family:monospace}'
++'.pv-countdown span{font-size:16px;font-weight:700;background:#333;color:#fff;padding:3px 6px;border-radius:3px}'
++'.pv-qr{width:56px;height:56px;background:#fff;border:2px solid #333;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#999}'
++'.pv-map-placeholder{width:180px;height:60px;background:#e8f5e9;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#27ae60;font-size:12px}'
++'.pv-share{display:flex;gap:6px}'
++'.pv-share span{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff}'
++'.pv-audio{width:200px;padding:10px;background:#f8f8f8;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#999;font-size:12px}'
++'.pv-carousel{width:180px;display:flex;align-items:center;justify-content:space-between;padding:8px;background:#f0f0f0;border-radius:6px;color:#999;font-size:11px}';
+document.head.appendChild(s);
+</script>
+</body>
+</html>

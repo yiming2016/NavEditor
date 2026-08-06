@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>模版库 - NavEditor</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#f5f7fa;color:#333;min-height:100vh}
+.header{background:linear-gradient(135deg,#27ae60,#2ecc71);border-bottom:none;padding:16px 32px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
+.header .hd-left{display:flex;align-items:center;gap:12px;flex:1}
+.header h1{font-size:20px;font-weight:700;color:#fff}
+.header p{font-size:12px;color:rgba(255,255,255,.7)}
+.header .hd-actions{display:flex;gap:8px;flex-shrink:0}
+.hd-btn{padding:7px 18px;font-size:13px;border-radius:7px;cursor:pointer;border:none;text-decoration:none;font-weight:500;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center}
+.hd-btn.add{background:rgba(255,255,255,.95);color:#27ae60}.hd-btn.add:hover{background:#fff}
+.hd-btn.blue{background:#3b82f6;color:#fff}.hd-btn.blue:hover{background:#2563eb}
+.content{padding:20px 32px}
+.cat-grid{display:flex;flex-wrap:wrap;gap:14px}
+.cat-col{flex:0 1 400px;min-width:320px;max-width:400px}
+.cat-card{background:#fff;border-radius:12px;border:1px solid #e8ecf1;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04);transition:box-shadow .2s}
+.cat-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.08)}
+.cat-card-head{display:flex;align-items:center;gap:10px;padding:14px 18px;cursor:pointer;user-select:none;border-bottom:1px solid #f2f4f7}
+.cat-card-head:hover{background:#fafbfc}
+.cat-card-head .cat-arrow{color:#ccc;font-size:11px;width:18px;text-align:center;transition:transform .2s;flex-shrink:0}
+.cat-card.collapsed .cat-arrow{transform:rotate(-90deg)}
+.cat-card-head .cat-icon{width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,#27ae60,#2ecc71);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.cat-card-head .cat-info{flex:1;min-width:0}
+.cat-card-head .cat-name{font-size:14px;font-weight:700;color:#1a1a2e;overflow:visible;text-overflow:ellipsis;white-space:nowrap;padding:2px 4px;border-radius:5px;cursor:text}
+.cat-card-head .cat-name:hover{background:#e8f5e9}
+.cat-card-head .cat-count{font-size:11px;color:#aaa;margin-top:1px}
+.cat-card-head .cat-actions{display:flex;gap:5px;flex-shrink:0}
+.cat-card-head .cat-act{padding:6px 14px;font-size:13px;border-radius:5px;cursor:pointer;border:1px solid transparent;background:none;transition:all .15s}
+.cat-card-head .cat-act.add{color:#27ae60;border-color:#d4edda}.cat-card-head .cat-act.add:hover{background:#e8f5e9}
+.cat-card-head .cat-act.del{color:#e74c3c;border-color:#fdd}.cat-card-head .cat-act.del:hover{background:#fff0f0}
+.cat-card-body{padding:4px 8px 8px}
+.cat-card.collapsed .cat-card-body{display:none}
+.item-card{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;transition:background .12s;margin:2px 0}
+.item-card:nth-child(even){background:#fafdfb}
+.item-card:hover{background:#f0fdf4}
+body.dragging-active .item-card:hover{background:transparent}
+body.dragging-active .item-card:nth-child(even):hover{background:#fafdfb}
+.item-card .item-icon{width:30px;height:30px;border-radius:7px;background:linear-gradient(135deg,#e8f5e9,#d4edda);color:#27ae60;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.item-drag{width:20px;height:20px;display:flex;align-items:center;justify-content:center;cursor:grab;color:#ccc;font-size:13px;flex-shrink:0;border-radius:3px;user-select:none}
+.item-drag:hover{background:#e8f5e9;color:#27ae60}
+.item-drag:active{cursor:grabbing}
+.item-card.dragging{opacity:.85;background:#a3e4bc!important;border-radius:8px;box-shadow:0 2px 12px rgba(39,174,96,.35);pointer-events:none}
+.item-card .item-name{flex:1;font-size:15px;font-weight:600;color:#333;min-width:0;overflow:visible;text-overflow:ellipsis;white-space:nowrap}
+.item-card:hover .item-name{color:#1a1a2e}
+.item-modules{display:flex;gap:3px;overflow:hidden;flex-shrink:1;max-width:130px}
+.item-acts{display:flex;gap:6px;flex-shrink:0}
+.item-act{padding:7px 20px;font-size:13px;border-radius:5px;cursor:pointer;border:1px solid transparent;background:none;transition:all .15s}
+.item-act.edit{background:#27ae60;color:#fff;border:none;min-width:80px}.item-act.edit:hover{background:#219a52}
+.item-act.view{background:#fff;color:#3b82f6;border:1px solid #93bbfd;min-width:48px;padding:7px 10px}.item-act.view:hover{background:#eff6ff}
+.item-act.del{color:#e74c3c;border-color:#fdd}.item-act.del:hover{background:#fff0f0}
+.empty-hint{text-align:center;padding:100px 20px;color:#ccc;width:100%}
+.empty-hint .empty-icon{font-size:52px;margin-bottom:14px}
+.empty-hint .empty-text{font-size:15px}
+.empty-hint .empty-sub{font-size:13px;color:#ddd;margin-top:6px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:12px 28px;border-radius:22px;font-size:14px;color:#fff;background:rgba(0,0,0,.7);z-index:100;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+.confirm-ov{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:flex;align-items:center;justify-content:center}
+.confirm-box{background:#fff;border-radius:14px;padding:28px;max-width:420px;width:90%;box-shadow:0 12px 48px rgba(0,0,0,.2)}
+.confirm-box p{margin-bottom:18px;font-size:15px;line-height:1.6;color:#333}
+.confirm-btns{display:flex;gap:12px;justify-content:flex-end}
+.confirm-btns button{padding:9px 22px;border-radius:7px;font-size:14px;cursor:pointer;border:1px solid #ddd;background:#fff;color:#666;transition:all .15s}
+.confirm-btns .cfm-ok{background:#27ae60;color:#fff;border-color:#27ae60}.confirm-btns .cfm-ok:hover{background:#219a52}
+.confirm-btns .cfm-cancel:hover{background:#f5f5f5}
+.editing{border:1px solid #27ae60!important;outline:none;border-radius:5px!important}
+/* 预览开关 */
+.pv-switch{display:inline-flex;align-items:center;gap:6px;cursor:pointer;margin-left:4px}
+.pv-switch .pv-sw-track{width:36px;height:20px;border-radius:10px;background:#ccc;position:relative;transition:background .2s}
+.pv-switch .pv-sw-track::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:left .2s}
+.pv-switch.on .pv-sw-track{background:#27ae60}
+.pv-switch.on .pv-sw-track::after{left:18px}
+.pv-sw-label{font-size:13px;color:rgba(255,255,255,.7);font-weight:400}
+.pv-switch.on .pv-sw-label{color:rgba(255,255,255,.95)}
+/* 悬浮预览弹窗 */
+.tpl-popup{position:fixed;z-index:999;background:#fff;border-radius:12px;border:1px solid #e8ecf1;box-shadow:0 8px 32px rgba(0,0,0,.15);padding:16px;width:260px;pointer-events:none;display:none}
+.tpl-popup .pp-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.tpl-popup .pp-icon{width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,#27ae60,#2ecc71);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.tpl-popup .pp-name{font-size:14px;font-weight:700;color:#1a1a2e}
+.tpl-popup .pp-mods{display:flex;flex-wrap:wrap;gap:5px}
+.tpl-popup .pp-mods span{padding:4px 12px;border-radius:10px;font-size:14px;background:#e8f5e9;color:#27ae60;font-weight:500}
+@media(max-width:640px){.cat-col{flex:1 1 100%;min-width:0}.content{padding:14px 16px}.header{padding:12px 16px}}
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+<div class="header">
+<div class="hd-left"><h1>模版库</h1><span class="pv-switch" id="pvSwitch" onclick="togglePreview()"><span class="pv-sw-track"></span></span><span class="pv-sw-label">预览</span></div>
+<div class="hd-actions">
+<a href="../模块库/index.html" class="hd-btn blue">模块库</a>
+<button class="hd-btn add" onclick="addCategory()">＋ 新增分类</button>
+</div>
+</div>
+<div class="content"><div class="cat-grid" id="catGrid"></div></div>
+<div class="toast" id="toast"></div>
+<div class="tpl-popup" id="tplPopup"><div class="pp-head"><div class="pp-icon"><i class="fas fa-star"></i></div><div class="pp-name"></div></div><div class="pp-mods"></div></div>
+
+<script>
+var KEY='nav_combo_library',TPL_KEY='nav_template_library';
+function load(){try{var r=localStorage.getItem(KEY);return r?JSON.parse(r):null}catch(_){return null}}
+function save(d){try{localStorage.setItem(KEY,JSON.stringify(d))}catch(_){}}
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2000)}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function uid(){return't'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+
+function migrateOld(){
+  try{var old=localStorage.getItem(TPL_KEY);if(!old)return[];var d=JSON.parse(old),items=[];
+  Object.keys(d).forEach(function(ty){(d[ty].versions||[]).forEach(function(v){items.push({id:uid(),name:v.name||v.title,type:ty,icon:v.icon||'fas fa-star',title:v.title||'',content:v.content||{}})});});return items}catch(_){return[]}
+}
+
+function initData(){
+  var d=load();
+  if(!d||!d.categories){
+    var m=migrateOld();d={categories:[]};
+    if(m.length>0)d.categories.push({id:uid(),name:'未分类',items:m});
+    save(d);
+  }
+  // 补充新版本预设（首次打开时自动添加）
+  var newPresets=[
+    {id:'__preset_website',name:'网站提交',items:[{id:'tpl_form_standard',name:'标准提交表单',type:'form',icon:'fas fa-paper-plane',title:'提交网站',content:{richHtml:'',items:[]},modules:[{name:'单行输入框',config:{label:'<b>网站名称</b>',placeholder:'请输入网站名称',inputType:'text',required:true,cols:2}},{name:'单行输入框',config:{label:'<b>网站地址</b>',placeholder:'https://example.com',inputType:'url',required:true,cols:2}},{name:'选择器',config:{label:'<b>网站分类</b>',selType:'dropdown',options:['科技','教育','娱乐','购物','工具','其他'],required:true,cols:2}},{name:'选择器',config:{label:'<b>语言</b>',selType:'radio',options:['中文','English','日本語'],cols:2}},{name:'多行输入框',config:{label:'<b>网站简介</b>',placeholder:'请简要描述网站内容与特色...',rows:4,required:true,cols:4}},{name:'单行输入框',config:{label:'<b>联系邮箱</b>',placeholder:'name@example.com',inputType:'email',required:true,cols:2}},{name:'单行输入框',config:{label:'<b>标签关键词</b>',placeholder:'用逗号分隔多个关键词',inputType:'text',cols:2}}],_pvCols:[2,2,2,2,4,2,2],_titleAlign:'center'},{id:'tpl_form_simple',name:'简洁联系表单',type:'form',icon:'fas fa-envelope',title:'联系我们',content:{richHtml:'',items:[]},modules:[{name:'单行输入框',config:{label:'<b>姓名</b>',placeholder:'您的姓名',inputType:'text',required:true,cols:2}},{name:'单行输入框',config:{label:'<b>邮箱</b>',placeholder:'name@example.com',inputType:'email',required:true,cols:2}},{name:'多行输入框',config:{label:'<b>留言</b>',placeholder:'请在此输入您的留言或需求...',rows:5,required:true,cols:4}},{name:'开关切换',config:{label:'订阅资讯',defaultOn:true,cols:4}}],_pvCols:[2,2,4,4],_titleAlign:'left'}]},
+    {id:'__preset_about',name:'关于导航',items:[{id:'tpl_about_team',name:'团队介绍',type:'text',icon:'fas fa-users',title:'核心团队',content:{richHtml:'',items:[]},modules:[{name:'头像名片',config:{name:'张经理',bio:'CEO · 10年行业经验',cols:2}},{name:'头像名片',config:{name:'李总监',bio:'CTO · 全栈工程师',cols:2}},{name:'头像名片',config:{name:'王设计',bio:'设计总监 · UI/UX',cols:2}},{name:'头像名片',config:{name:'赵运营',bio:'COO · 运营专家',cols:2}},{name:'进度条',config:{label:'团队满意度',percent:92,cols:4}},{name:'统计数据',config:{num:'50+',label:'服务客户',cols:2}},{name:'统计数据',config:{num:'99.9%',label:'在线率',cols:2}}],_pvCols:[2,2,2,2,4,2,2],_titleAlign:'center'},{id:'tpl_about_contact',name:'联系我们',type:'text',icon:'fas fa-address-book',title:'联系方式',content:{richHtml:'',items:[]},modules:[{name:'联系方式卡',config:{email:'contact@example.com',phone:'400-123-4567',address:'北京市朝阳区科技园A座',cols:4}},{name:'单行输入框',config:{label:'<b>您的姓名</b>',placeholder:'请输入姓名',inputType:'text',required:true,cols:2}},{name:'单行输入框',config:{label:'<b>您的邮箱</b>',placeholder:'name@example.com',inputType:'email',required:true,cols:2}},{name:'多行输入框',config:{label:'<b>留言内容</b>',placeholder:'请在此输入您想说的话...',rows:4,cols:4}},{name:'社交分享',config:{url:'',cols:4}}],_pvCols:[4,2,2,4,4],_titleAlign:'left'},{id:'tpl_about_journey',name:'公司历程',type:'text',icon:'fas fa-history',title:'发展历程',content:{richHtml:'',items:[]},modules:[{name:'时间线',config:{nodes:'2020年 公司成立,2021年 获得A轮融资,2022年 用户突破100万,2023年 推出AI产品,2024年 全球业务拓展',cols:4}},{name:'统计数据',config:{num:'5',label:'成立年数',cols:2}},{name:'统计数据',config:{num:'500万+',label:'服务用户',cols:2}},{name:'步骤进度条',config:{steps:'初创期,成长期,扩张期,成熟期',cols:4}}],_pvCols:[4,2,2,4],_titleAlign:'center'},{id:'tpl_about_skills',name:'技能展示',type:'text',icon:'fas fa-star',title:'核心能力',content:{richHtml:'',items:[]},modules:[{name:'标签组',config:{tags:'前端开发,UI设计,后端开发,数据分析,人工智能,云计算',tagMode:'display',cols:4}},{name:'进度条',config:{label:'产品研发能力',percent:95,cols:4}},{name:'进度条',config:{label:'客户满意度',percent:88,cols:4}},{name:'进度条',config:{label:'技术创新指数',percent:90,cols:4}}],_pvCols:[4,4,4,4],_titleAlign:'center'}]}
+  ];
+  var changed=false;
+  newPresets.forEach(function(p){var exists=false;d.categories.forEach(function(c){if(c.id===p.id)exists=true});if(!exists){d.categories.unshift(p);changed=true}});
+  if(changed)save(d);
+  return d;
+}
+var data=initData();
+
+function showConfirm(msg,cb){
+  var ov=document.createElement('div');ov.className='confirm-ov';
+  ov.innerHTML='<div class="confirm-box"><p>'+msg+'</p><div class="confirm-btns"><button class="cfm-cancel">取消</button><button class="cfm-ok">确认</button></div></div>';
+  document.body.appendChild(ov);
+  function clean(){document.body.removeChild(ov);document.removeEventListener('keydown',onKey)}
+  function onKey(e){if(e.key==='Enter'){e.preventDefault();clean();cb()}else if(e.key==='Escape'){e.preventDefault();clean()}}
+  ov.querySelector('.cfm-ok').onclick=function(){clean();cb()};
+  ov.querySelector('.cfm-cancel').onclick=function(){clean()};
+  ov.addEventListener('click',function(e){if(e.target===ov)clean()});
+  document.addEventListener('keydown',onKey);
+  ov.querySelector('.cfm-ok').focus();
+}
+
+function renderAll(){
+  var cats=data.categories,coll=JSON.parse(localStorage.getItem('combo_collapsed')||'{}');
+  if(cats.length===0){document.getElementById('catGrid').innerHTML='<div class="empty-hint"><div class="empty-icon">📂</div><div class="empty-text">还没有分类</div><div class="empty-sub">点击右上角「新增分类」开始创建</div></div>';return}
+  var html='';
+  cats.forEach(function(cat,ci){
+    var cld=coll[cat.id]||false;
+    html+='<div class="cat-col"><div class="cat-card'+(cld?' collapsed':'')+'" data-cat-idx="'+ci+'">';
+    html+='<div class="cat-card-head" data-toggle-cat="'+ci+'">';
+    html+='<span class="cat-arrow">▼</span><div class="cat-icon"><i class="fas fa-folder"></i></div>';
+    html+='<div class="cat-info"><div class="cat-name" data-rename-cat="'+ci+'">'+esc(cat.name)+'</div><div class="cat-count">'+cat.items.length+' 个模板</div></div>';
+    html+='<div class="cat-actions"><button class="cat-act add" data-add-item="'+ci+'">+模板</button><button class="cat-act del" data-del-cat="'+ci+'" title="删除分类"><i class="fas fa-trash"></i></button></div></div>';
+    html+='<div class="cat-card-body">';
+    cat.items.forEach(function(item,ii){
+      html+='<div class="item-card" data-cat-idx="'+ci+'" data-item-idx="'+ii+'">';
+      html+='<span class="item-drag" title="拖动排序">&#9776;</span>';
+      html+='<div class="item-icon"><i class="'+(item.icon||'fas fa-star')+'"></i></div>';
+      html+='<span class="item-name" data-rename-item="'+ci+'_'+ii+'" style="cursor:text">'+esc(item.name)+'</span>';
+      html+='<div class="item-acts"><button class="item-act view" data-view="'+ci+'_'+ii+'">查看</button><button class="item-act edit" data-edit="'+ci+'_'+ii+'">编辑</button><button class="item-act del" data-del-item="'+ci+'_'+ii+'" title="删除"><i class="fas fa-trash"></i></button></div></div>';
+    });
+    html+='</div></div></div>';
+  });
+  document.getElementById('catGrid').innerHTML=html;bindEvents()
+}
+
+function bindEvents(){
+  var coll=JSON.parse(localStorage.getItem('combo_collapsed')||'{}');
+  document.querySelectorAll('[data-toggle-cat]').forEach(function(el){el.onclick=function(e){if(e.target.closest('.cat-actions')||e.target.closest('[data-rename-cat]'))return;var ci=parseInt(el.getAttribute('data-toggle-cat')),card=el.closest('.cat-card');card.classList.toggle('collapsed');coll[data.categories[ci].id]=card.classList.contains('collapsed');localStorage.setItem('combo_collapsed',JSON.stringify(coll))}});
+  document.querySelectorAll('[data-rename-cat]').forEach(function(el){el.onclick=function(e){e.stopPropagation();var ci=parseInt(el.getAttribute('data-rename-cat')),old=data.categories[ci].name,inp=document.createElement('input');inp.value=old;inp.style.cssText='position:absolute;left:0;top:-2px;width:100%;box-sizing:border-box;font-size:14px;font-weight:700;padding:6px 6px;border:2px solid #27ae60;border-radius:5px;z-index:5;background:#fff';inp.className='editing';el.style.position='relative';el.style.color='transparent';el.appendChild(inp);inp.focus();inp.select();var done=function(){var n=inp.value.trim()||old;data.categories[ci].name=n;save(data);renderAll();toast('已改名')};inp.addEventListener('blur',done);inp.addEventListener('keydown',function(e){if(e.key==='Enter')done();else if(e.key==='Escape'){el.textContent=old;el.style.color='';el.style.position='';inp.remove()}})}});
+  document.querySelectorAll('[data-rename-item]').forEach(function(el){el.onclick=function(){var p=el.getAttribute('data-rename-item').split('_'),ci=parseInt(p[0]),ii=parseInt(p[1]),item=data.categories[ci].items[ii],old=item.name,inp=document.createElement('input');inp.value=old;inp.style.cssText='position:absolute;left:0;top:0;width:80px;height:100%;font-size:13px;font-weight:500;padding:4px 6px;border:2px solid #27ae60;border-radius:4px;box-sizing:border-box;z-index:5';inp.className='editing';el.style.color='transparent';el.appendChild(inp);inp.focus();inp.select();var done=function(){var n=inp.value.trim()||old;item.name=n;save(data);el.textContent=n;el.style.color='';inp.remove();renderAll();toast('已改名')};inp.addEventListener('blur',done);inp.addEventListener('keydown',function(e){if(e.key==='Enter')done();else if(e.key==='Escape'){el.textContent=old;el.style.color='';inp.remove()}})}});
+  document.querySelectorAll('[data-del-cat]').forEach(function(el){el.onclick=function(e){e.stopPropagation();var ci=parseInt(el.getAttribute('data-del-cat')),cat=data.categories[ci],msg=cat.items.length?'分类「'+cat.name+'」下有 '+cat.items.length+' 个模板，一并删除？':'确定删除分类「'+cat.name+'」？';showConfirm(msg,function(){data.categories.splice(ci,1);save(data);renderAll();toast('已删除')})}});
+  document.querySelectorAll('[data-del-item]').forEach(function(el){el.onclick=function(){var p=el.getAttribute('data-del-item').split('_'),ci=parseInt(p[0]),ii=parseInt(p[1]),item=data.categories[ci].items[ii];showConfirm('确定删除模板「'+item.name+'」？',function(){data.categories[ci].items.splice(ii,1);save(data);renderAll();toast('已删除')})}});
+  document.querySelectorAll('[data-add-item]').forEach(function(el){el.onclick=function(e){e.stopPropagation();var ci=parseInt(el.getAttribute('data-add-item'));data.categories[ci].items.push({id:uid(),name:'新模板',type:'text',icon:'fas fa-star',title:'新模板',content:{richHtml:'',items:[]}});save(data);renderAll();toast('已添加')}});
+  document.querySelectorAll('[data-edit]').forEach(function(el){el.onclick=function(){var p=el.getAttribute('data-edit').split('_');window.open('../模板编辑器/index.html?cat='+p[0]+'&item='+p[1],'_blank')}});
+  document.querySelectorAll('[data-view]').forEach(function(el){el.onclick=function(){var p=el.getAttribute('data-view').split('_'),ci=parseInt(p[0]),ii=parseInt(p[1]);window.open('../模板编辑器/index.html?cat='+ci+'&item='+ii+'&view=1','_blank')}});
+  document.querySelectorAll('[data-rename-item]').forEach(function(el){el.onclick=function(e){e.stopPropagation();var p=el.getAttribute('data-rename-item').split('_'),ci=parseInt(p[0]),ii=parseInt(p[1]),item=data.categories[ci].items[ii],old=item.name,inp=document.createElement('input');inp.value=old;inp.style.cssText='position:absolute;left:0;top:-3px;width:100%;box-sizing:border-box;font-size:15px;font-weight:600;padding:8px 8px;border:2px solid #27ae60;border-radius:4px;z-index:5;background:#fff';inp.className='editing';el.style.position='relative';el.style.color='transparent';el.appendChild(inp);inp.focus();inp.select();var done=function(){var n=inp.value.trim()||old;item.name=n;save(data);el.textContent=n;el.style.color='';el.style.position='';inp.remove();renderAll();toast('已改名')};inp.addEventListener('blur',done);inp.addEventListener('keydown',function(e){if(e.key==='Enter')done();else if(e.key==='Escape'){el.textContent=old;el.style.color='';el.style.position='';inp.remove()}})}});
+  // 模板拖拽排序
+  document.querySelectorAll('.item-drag').forEach(function(handle){handle.addEventListener('mousedown',function(e){e.preventDefault();e.stopPropagation();var row=handle.closest('.item-card'),ci=parseInt(row.getAttribute('data-cat-idx')),origItems=data.categories[ci].items.slice();row.classList.add('dragging');document.body.classList.add('dragging-active');
+    function onMove(e2){var t=document.elementFromPoint(e2.clientX,e2.clientY);if(!t)return;var tr=t.closest('.item-card');if(!tr||tr===row)return;var ctci=parseInt(tr.getAttribute('data-cat-idx'));if(ctci!==ci)return;var rect=tr.getBoundingClientRect(),curAbove=row.compareDocumentPosition(tr)&Node.DOCUMENT_POSITION_FOLLOWING,thresh=curAbove?.25:.75,after=e2.clientY>rect.top+rect.height*thresh;if(after&&tr.nextSibling){row.parentNode.insertBefore(row,tr.nextSibling)}else if(after){row.parentNode.appendChild(row)}else{row.parentNode.insertBefore(row,tr)}}
+    function onUp(){document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);document.body.classList.remove('dragging-active');row.classList.remove('dragging');var children=row.parentNode.children,newOrder=[];for(var s=0;s<children.length;s++){var oi=parseInt(children[s].getAttribute('data-item-idx'));if(!isNaN(oi)&&origItems[oi])newOrder.push(origItems[oi])}data.categories[ci].items=newOrder;save(data);renderAll()}
+    document.addEventListener('mousemove',onMove);document.addEventListener('mouseup',onUp)})});
+}
+function addCategory(){data.categories.push({id:uid(),name:'新分类',items:[]});save(data);renderAll();toast('已添加分类')}
+
+var previewOn=false,popup=document.getElementById('tplPopup');
+function togglePreview(){previewOn=!previewOn;document.getElementById('pvSwitch').classList.toggle('on',previewOn);if(!previewOn)popup.style.display='none'}
+document.addEventListener('mouseover',function(e){if(!previewOn)return;var card=e.target.closest('.item-card');if(!card){popup.style.display='none';return}
+var ci=parseInt(card.getAttribute('data-cat-idx')),ii=parseInt(card.getAttribute('data-item-idx')),item=data.categories[ci].items[ii];
+if(!item)return;popup.querySelector('.pp-icon i').className=item.icon||'fas fa-star';
+popup.querySelector('.pp-name').textContent=item.name;
+popup.querySelector('.pp-mods').innerHTML=(item.modules||[]).map(function(m){return'<span>'+esc(m)+'</span>'}).join('')||'<span style="color:#ccc">暂无模块</span>';
+popup.style.display='block'});
+document.addEventListener('mousemove',function(e){if(!previewOn||popup.style.display==='none')return;var x=e.clientX+14,y=e.clientY+10;if(x+270>window.innerWidth)x=e.clientX-275;if(y+150>window.innerHeight)y=e.clientY-160;popup.style.left=x+'px';popup.style.top=y+'px'});
+
+renderAll();
+</script>
+</body>
+</html>
