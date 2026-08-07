@@ -201,9 +201,9 @@ const TEMPLATE = `
                                    'drag-over': dropPreview && dropPreview.type==='card' && dropPreview.targetIndex===index }"
                          @pointerdown="onCardPointerDown($event, index)" @click="editSite(site, index)">
                         <div class="nav-card-img-wrap" @click.stop="editSite(site, index)">
-                            <img v-if="site.logo && (isHttpUrl(site.logo) || isDataUrl(site.logo))" class="nav-card-img" :src="site.logo" :alt="site.name">
+                            <img v-if="site.logo && !isSvgText(site.logo) && !site.logoLoadError" class="nav-card-img" :src="site.logo" :alt="site.name" @error="site.logoLoadError = true">
                             <div v-else-if="site.logo && isSvgText(site.logo)" class="nav-card-img-svg" v-html="site.logo"></div>
-                            <div v-else class="nav-card-img-placeholder">{{ (site.name || '?').charAt(0) }}</div>
+                            <div v-else class="nav-card-img-placeholder"><i :class="site.fallbackIcon || 'fas fa-link'" style="font-size:18px;color:#8a94a6"></i></div>
                             <div class="nav-card-img-overlay"><i class="fas fa-pencil-alt"></i></div>
                         </div>
                         <div class="nav-card-info">
@@ -370,6 +370,26 @@ const TEMPLATE = `
                     <div class="modal-footer" style="justify-content:space-between">
                         <button class="btn btn-outline" @click="resetPublishSettings">恢复默认</button>
                         <button class="btn btn-primary" @click="closePublishSettings">完成</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GitHub 建树超时/过大：分片发布方案 -->
+            <div v-if="modal.treeTooLarge" class="modal-overlay" @click.self="modal.treeTooLarge = false">
+                <div class="modal" style="max-width:520px">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-exclamation-triangle" style="color:var(--warning)"></i> 发布文件树过大</h3>
+                        <button class="btn-icon" @click="modal.treeTooLarge = false"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="modal-body">
+                        <p style="font-size:13px;margin:0 0 8px">GitHub 一次性创建全部文件时超时（文件较多或仓库内容过大），这是 GitHub 接口的请求体大小限制。</p>
+                        <p style="font-size:12px;color:var(--text-muted);margin:0;line-height:1.7">
+                            已为你准备好解决方案：<b>分片发布</b>会把文件分批构建仓库树（每批约 120 个），避开接口超时，不需要你手动处理。
+                        </p>
+                    </div>
+                    <div class="modal-footer" style="justify-content:flex-end">
+                        <button class="btn" @click="modal.treeTooLarge = false">取消</button>
+                        <button class="btn btn-primary" @click="confirmShardPublish"><i class="fas fa-layer-group"></i> 分片发布</button>
                     </div>
                 </div>
             </div>
@@ -1278,15 +1298,21 @@ const TEMPLATE = `
         <div v-if="modal.versions" class="modal-overlay">
             <div class="modal modal-version-history">
                 <div class="modal-header">
-                    <h3>版本历史</h3>
+                    <h3 style="font-size:22px">版本历史</h3>
+                    <button class="btn btn-primary" @click="createVersionFromTemplate" title="使用默认模板新建版本" style="padding:8px 16px;font-size:14px;margin-left:10px">
+                        <i class="fas fa-plus"></i> 新建
+                    </button>
                     <div style="display:flex;align-items:center;gap:8px;margin-left:auto;margin-right:12px">
-                        <button class="btn btn-sm btn-primary" @click="createVersionFromTemplate" title="使用默认模板新建版本">
-                            <i class="fas fa-plus"></i> 新建
-                        </button>
-                        <button class="btn btn-sm" @click="importVersionFile" title="导入 .naveditor 分享包或 JSON（可勾选板块）">
+                        <button class="btn btn-sm btn-sky" @click="importVersionFile" title="导入 .naveditor 分享包或 JSON（可勾选板块）">
                             <i class="fas fa-file-import"></i> 导入
                         </button>
-                        <button class="btn btn-sm" @click="openTemplateSettings" title="管理默认模板">
+                        <button class="btn btn-sm btn-excel" @click="importExcelVersion" title="从 Excel（.xlsx/.csv）批量导入网址清单，按行顺序生成新版本" style="margin-left:6px">
+                            <i class="fas fa-file-excel"></i> .excel导入
+                        </button>
+                        <button class="btn btn-sm btn-excel" @click="importBookmarksGenerator" title="把浏览器导出的书签（HTML）转换为系统可识别的 Excel 文件" style="margin-left:6px">
+                            <i class="fas fa-bookmark"></i> .excel生成器
+                        </button>
+                        <button class="btn btn-sm btn-slate" @click="openTemplateSettings" title="管理默认模板">
                             <i class="fas fa-cog"></i> 设置
                         </button>
                     </div>
@@ -1315,35 +1341,42 @@ const TEMPLATE = `
                                 <div style="font-size:11px;color:var(--text-muted);margin-top:2px;display:flex;align-items:center;gap:8px">
                                     <span>{{ Utils.formatTime(v.timestamp) }}</span>
                                     <span v-if="v.starred" style="color:#f59e0b;margin-left:0"><i class="fas fa-star"></i></span>
-                                    <button class="btn btn-sm" @click.stop="previewVersion(v)" title="访客视角预览此版本" style="padding:3px 10px;font-size:12px;white-space:nowrap">
-                                        <i class="fas fa-external-link-alt"></i> 访客视角
-                                    </button>
                                 </div>
                             </div>
                             <div style="display:flex;gap:12px;flex-shrink:0;align-items:flex-start">
+                                <!-- 左侧一列：所在位置 / 访客视角（同尺寸、不同配色） -->
                                 <div style="display:flex;flex-direction:column;gap:6px">
-                                    <button class="btn btn-sm" @click.stop="openVersionLocation(v)" title="打开版本所在文件夹" style="padding:6px 12px;font-size:13px;white-space:nowrap;display:flex;align-items:center;justify-content:center;width:84px">
+                                    <button class="btn btn-sm btn-slate" @click.stop="openVersionLocation(v)" title="打开版本所在文件夹" style="padding:6px 12px;font-size:13px;white-space:nowrap;display:flex;align-items:center;justify-content:center;width:84px">
                                         <i class="fas fa-folder-open"></i> 所在位置
                                     </button>
-                                    <button class="btn btn-sm" @click.stop="shareVersion(v)" title="导出为 .naveditor 分享包（可勾选板块）" style="padding:6px 12px;font-size:13px;white-space:nowrap;display:flex;align-items:center;justify-content:center;width:84px">
-                                        <i class="fas fa-share-alt"></i> 分享
+                                    <button class="btn btn-sm btn-sky" @click.stop="previewVersion(v)" title="访客视角预览此版本" style="padding:6px 12px;font-size:13px;white-space:nowrap;display:flex;align-items:center;justify-content:center;width:84px">
+                                        <i class="fas fa-external-link-alt"></i> 访客视角
                                     </button>
                                 </div>
+                                <!-- 右侧两行三列：分享/增量发布/新页面编辑 上排；.excel导出/同步信息/删除 下排 -->
                                 <div style="display:flex;flex-direction:column;gap:6px">
-                                    <button class="btn btn-sm" @click.stop="editVersionInEditor(v)" title="加载此版本并在新页面编辑" style="padding:6px 12px;font-size:13px">
-                                        <i class="fas fa-edit"></i> 新页面编辑
-                                    </button>
-                                    <button class="btn btn-sm" @click.stop="openVersionSyncInfo(v)" title="查看该版本发布过哪些账号、最后同步时间与未发布修改" style="padding:6px 12px;font-size:13px">
-                                        <i class="fas fa-sync-alt"></i> 同步信息
-                                    </button>
-                                </div>
-                                <div style="display:flex;flex-direction:column;gap:6px">
-                                    <button class="btn btn-sm" :class="versionSyncState(v) === 'synced' ? 'btn-success' : 'btn-primary'" @click.stop="publishVersion(v)" :title="versionSyncState(v) === 'synced' ? '该版本最后一次修改已发布到 ' + (activeAccountName || '当前账号') + '（绿色=已同步）' : (versionSyncState(v) === 'pending' ? '该版本存在未发布的修改，点击增量发布' : '增量发布到 ' + (activeAccountName || '未选择账号'))" style="padding:6px 12px;font-size:13px;white-space:nowrap;display:flex;align-items:center;justify-content:center;width:120px">
-                                        <i class="fas fa-cloud-upload-alt"></i> 增量发布
-                                    </button>
-                                    <button class="btn btn-sm btn-danger" @click.stop="deleteVersion(v)" title="删除" style="padding:6px 12px;font-size:13px;white-space:nowrap;display:flex;align-items:center;justify-content:center;width:120px">
-                                        <i class="fas fa-trash"></i> 删除
-                                    </button>
+                                    <div style="display:flex;gap:6px">
+                                        <button class="btn btn-sm btn-blue" @click.stop="shareVersion(v)" title="导出为 .naveditor 分享包（可勾选板块）" style="padding:6px 12px;font-size:13px;white-space:nowrap;display:flex;align-items:center;justify-content:center;width:110px">
+                                            <i class="fas fa-share-alt"></i> 分享
+                                        </button>
+                                        <button class="btn btn-sm btn-success" @click.stop="publishVersion(v)" :title="versionSyncState(v) === 'synced' ? '该版本最后一次修改已发布到 ' + (activeAccountName || '当前账号') + '（绿色=已同步）' : (versionSyncState(v) === 'pending' ? '该版本存在未发布的修改，点击增量发布' : '增量发布到 ' + (activeAccountName || '未选择账号'))" style="padding:6px 12px;font-size:13px;white-space:nowrap;display:flex;align-items:center;justify-content:center;width:110px">
+                                            <i class="fas fa-cloud-upload-alt"></i> 增量发布
+                                        </button>
+                                        <button class="btn btn-sm btn-violet" @click.stop="editVersionInEditor(v)" title="加载此版本并在新页面编辑" style="padding:6px 12px;font-size:13px;white-space:nowrap;display:flex;align-items:center;justify-content:center;width:110px">
+                                            <i class="fas fa-edit"></i> 新页面编辑
+                                        </button>
+                                    </div>
+                                    <div style="display:flex;gap:6px">
+                                        <button class="btn btn-sm btn-excel" @click.stop="exportVersionExcel(v)" title="导出为 Excel 网址清单（.xlsx）" style="padding:6px 12px;font-size:13px;white-space:nowrap;display:flex;align-items:center;justify-content:center;width:110px">
+                                            <i class="fas fa-file-excel"></i> .excel导出
+                                        </button>
+                                        <button class="btn btn-sm btn-orange" @click.stop="openVersionSyncInfo(v)" title="查看该版本发布过哪些账号、最后同步时间与未发布修改" style="padding:6px 12px;font-size:13px;white-space:nowrap;display:flex;align-items:center;justify-content:center;width:110px">
+                                            <i class="fas fa-sync-alt"></i> 同步信息
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" @click.stop="deleteVersion(v)" title="删除" style="padding:6px 12px;font-size:13px;white-space:nowrap;display:flex;align-items:center;justify-content:center;width:110px">
+                                            <i class="fas fa-trash"></i> 删除
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1393,6 +1426,182 @@ const TEMPLATE = `
                     <button class="btn btn-primary" @click="shareDraft.mode === 'share' ? confirmShare() : confirmImport()">
                         {{ shareDraft.mode === 'share' ? '生成分享包' : '确认导入' }}
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 书签映射器：左=原书签多级树，右=两级映射结果 -->
+        <!-- 点击空白处关闭右键菜单（菜单自身点击不冒泡，菜单项各自处理后关闭） -->
+        <div v-if="bookmarkMapper.open" class="modal-overlay" @click="closeBookmarkCtx" @contextmenu.prevent>
+            <div class="modal" style="max-width:980px;width:980px">
+                <div class="modal-header">
+                    <h3><i class="fas fa-bookmark" style="color:var(--primary)"></i> 书签映射器</h3>
+                    <div style="margin-left:auto;margin-right:12px;font-size:12px;color:var(--text-muted)">右键左侧文件夹，拆分到右侧（未拆分的不会显示）</div>
+                    <button class="btn-icon" @click="closeBookmarkMapper"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body" style="display:flex;gap:12px;padding:14px;max-height:66vh">
+                    <!-- 左：原书签多级树 -->
+                    <div style="flex:1;border:1px solid var(--border);border-radius:8px;overflow:auto;padding:8px;max-height:60vh;min-width:0">
+                        <div style="font-weight:600;font-size:13px;margin-bottom:8px"><i class="fas fa-sitemap" style="color:var(--text-muted);margin-right:4px"></i>原书签（多级）
+                            <span style="font-size:11px;color:var(--text-muted);font-weight:400;margin-left:6px">{{ bookmarkLeftStats.folders }} 个书签 {{ bookmarkLeftStats.sites }} 个网站</span>
+                        </div>
+                        <div v-for="item in visibleBookmarkFlat" :key="item.key"
+                             class="bookmark-tree-item"
+                             :style="'padding-left:' + (item.depth * 18 + 4) + 'px'"
+                             @click.stop="clickBookmarkNode(item)"
+                             @contextmenu.prevent="openBookmarkCtx($event, item)"
+                             :title="item.folder ? '右键拆分到右侧' : item.url">
+                            <i :class="item.folder ? (item.expanded ? 'fas fa-folder-open' : 'fas fa-folder') : 'fas fa-link'"
+                               style="width:16px;font-size:12px;color:var(--text-muted);flex-shrink:0"></i>
+                            <span style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ item.name }}</span>
+                            <span v-if="isBookmarkPrimaryReady(item)" title="适合一级分类：下有多个子文件夹且无网站、子文件夹内无更深文件夹" style="margin-left:6px;font-size:10px;color:#16a34a;border:1px solid rgba(22,163,74,.45);border-radius:4px;padding:0 4px;flex-shrink:0;line-height:1.5">一级</span>
+                            <span v-if="isBookmarkSecondaryReady(item)" title="可二级分类（只有网站，无子文件夹）" style="margin-left:6px;font-size:10px;color:#0ea5e9;border:1px solid rgba(14,165,233,.45);border-radius:4px;padding:0 4px;flex-shrink:0;line-height:1.5">二级</span>
+                            <button v-if="isBookmarkSplitable(item)" class="btn-icon" @click.stop="bookmarkSplitLevels(item.key)" title="逐级拆分（多级书签，从最深两层开始）" style="margin-left:auto;padding:2px 6px;flex-shrink:0">
+                                <i class="fas fa-layer-group" style="font-size:11px;color:#8b5cf6"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- 右：两级映射结果 -->
+                    <div style="flex:1;border:1px solid var(--border);border-radius:8px;overflow:auto;padding:8px;max-height:60vh;min-width:0">
+                        <div style="font-weight:600;font-size:13px;margin-bottom:8px"><i class="fas fa-th-large" style="color:var(--text-muted);margin-right:4px"></i>映射结果（两级）
+                            <span style="font-size:11px;color:var(--text-muted);font-weight:400;margin-left:6px">{{ bookmarkRightStats.cats }} 个主分类 {{ bookmarkRightStats.subs }} 个子分类 {{ bookmarkRightStats.sites }} 个网站</span>
+                        </div>
+                        <div v-if="bookmarkMapper.right.length === 0" style="font-size:12px;color:var(--text-muted);padding:24px 0;text-align:center">左侧右键拆分后显示在这里</div>
+                        <div v-for="(cat, ci) in bookmarkMapper.right" :key="'c'+ci" class="bookmark-right-cat">
+                            <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;padding:4px 6px;border-radius:6px;background:rgba(120,120,140,0.08);cursor:pointer;user-select:none"
+                                 @click="toggleRightCat(cat)" title="点击展开/收起子分类">
+                                <i :class="cat.expanded ? 'fas fa-folder-open' : 'fas fa-folder'" style="color:var(--primary);width:16px;font-size:12px;flex-shrink:0"></i>
+                                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ cat.name }}</span>
+                                <span style="font-size:11px;color:var(--text-muted);flex-shrink:0">{{ cat.subs.length }} 子分类</span>
+                                <i class="fas fa-chevron-down" style="margin-left:auto;font-size:10px;color:var(--text-muted);flex-shrink:0;transition:transform .15s" :style="cat.expanded ? '' : 'transform:rotate(-90deg)'"></i>
+                                <button class="btn-icon" @click.stop="removeBookmarkRight(ci)" title="移除" style="padding:2px 6px;flex-shrink:0">
+                                    <i class="fas fa-times" style="font-size:11px;color:var(--danger)"></i>
+                                </button>
+                            </div>
+                            <template v-if="cat.expanded" v-for="(sub, si) in cat.subs" :key="'s'+ci+'-'+si">
+                                <div style="padding-left:18px;font-size:12px;margin:2px 0;display:flex;align-items:center;gap:4px;cursor:pointer;user-select:none;border-radius:5px;padding-top:3px;padding-bottom:3px"
+                                     @click="toggleRightSub(sub)" title="点击展开/收起网站">
+                                    <i :class="sub.expanded ? 'fas fa-folder-open' : 'fas fa-folder'" style="color:var(--text-muted);width:14px;font-size:11px;flex-shrink:0"></i>
+                                    <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ sub.name }}</span>
+                                    <span style="color:var(--text-muted);font-size:11px;flex-shrink:0">（{{ sub.sites.length }} 个网站）</span>
+                                    <i class="fas fa-chevron-down" style="margin-left:auto;font-size:9px;color:var(--text-muted);flex-shrink:0;transition:transform .15s" :style="sub.expanded ? '' : 'transform:rotate(-90deg)'"></i>
+                                    <button class="btn-icon" @click.stop="removeBookmarkSub(cat, si)" title="删除该子分类" style="padding:1px 5px;flex-shrink:0">
+                                        <i class="fas fa-times" style="font-size:10px;color:var(--danger)"></i>
+                                    </button>
+                                </div>
+                                <div v-if="sub.expanded" v-for="(site, xi) in sub.sites" :key="'x'+ci+'-'+si+'-'+xi"
+                                     style="padding-left:38px;font-size:12px;margin:1px 0;display:flex;align-items:center;gap:4px;color:var(--text-muted)" :title="site.url">
+                                    <i class="fas fa-link" style="width:12px;font-size:10px;flex-shrink:0"></i>
+                                    <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ site.name }}</span>
+                                    <button class="btn-icon" @click.stop="removeBookmarkSite(sub, xi)" title="删除该网站" style="margin-left:auto;padding:1px 5px;flex-shrink:0">
+                                        <i class="fas fa-times" style="font-size:10px;color:var(--danger)"></i>
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="justify-content:space-between">
+                    <span style="font-size:12px;color:var(--text-muted)">未右键拆分的书签不会出现在右侧 · Ctrl+Z 撤销 / Ctrl+Y 重做</span>
+                    <div style="display:flex;gap:8px">
+                        <button class="btn" @click="closeBookmarkMapper">取消</button>
+                        <button class="btn btn-primary" @click="generateBookmarkMapperExcel"><i class="fas fa-file-excel"></i> 生成 Excel</button>
+                    </div>
+                </div>
+            </div>
+            <!-- 右键菜单 -->
+            <div v-if="bookmarkMapper.ctx.visible" class="bookmark-ctx-menu" :style="{ left: bookmarkMapper.ctx.x + 'px', top: bookmarkMapper.ctx.y + 'px' }" @click.stop>
+                <button v-if="bookmarkCtxShowPrimary" class="bookmark-ctx-item" @click="bookmarkToPrimary"><i class="fas fa-folder" style="color:#3b82f6"></i> 一级分类</button>
+                <button v-if="bookmarkCtxShowSecondary" class="bookmark-ctx-item" @click="bookmarkToSecondary"><i class="fas fa-folder-open" style="color:#0ea5e9"></i> 二级分类</button>
+                <button v-if="bookmarkCtxShowSplit" class="bookmark-ctx-item" @click="bookmarkSplitLevels()"><i class="fas fa-layer-group" style="color:#8b5cf6"></i> 逐级拆分</button>
+            </div>
+            <!-- 一级书签下有网站：并入选择弹窗 -->
+            <div v-if="bookmarkMapper.choice.visible" class="modal-overlay" @click.self="bookmarkMapper.choice.visible = false">
+                <div class="modal" style="max-width:460px">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-exclamation-circle" style="color:var(--warning)"></i> {{ bookmarkMapper.choice.sites.length > 0 ? '一级书签下有网站' : '一级书签下有更深文件夹' }}</h3>
+                        <button class="btn-icon" @click="bookmarkMapper.choice.visible = false"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="modal-body">
+                        <template v-if="bookmarkMapper.choice.sites.length > 0">
+                            <p style="font-size:13px;margin:0 0 6px">「{{ bookmarkMapper.choice.catName }}」下还有 {{ bookmarkMapper.choice.sites.length }} 个网站：</p>
+                            <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px">{{ bookmarkMapper.choice.sites.join('、') }}</p>
+                        </template>
+                        <div v-if="bookmarkMapper.choice.deepSubs.length > 0" style="border:1px solid rgba(245,158,11,.45);background:rgba(245,158,11,.06);border-radius:6px;padding:10px 12px;font-size:12px;color:#b45309;margin-bottom:12px">
+                            <i class="fas fa-exclamation-triangle" style="margin-right:4px"></i>
+                            以下更深层级文件夹会被丢弃：<b>{{ bookmarkMapper.choice.deepSubs.join('、') }}</b>。如需保留，请先取消本次操作，在左侧对它们使用「逐级拆分」。
+                        </div>
+                        <div v-if="bookmarkMapper.choice.sites.length > 0" style="border:1px solid var(--border);border-radius:6px;padding:12px;font-size:13px">
+                            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:8px">
+                                <input type="radio" value="discard" v-model="bmChoiceMode"><span>舍弃这些网站</span>
+                            </label>
+                            <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+                                <input type="radio" value="merge" v-model="bmChoiceMode"><span>并入到二级书签</span>
+                            </label>
+                            <div v-if="bmChoiceMode === 'merge'" style="margin-top:8px;display:flex;flex-direction:column;gap:6px;padding-left:4px">
+                                <label v-for="s in bookmarkMapper.choice.subs" :key="s" style="display:flex;align-items:center;gap:6px;cursor:pointer">
+                                    <input type="radio" :value="s" v-model="bookmarkMapper.choice.selectedSub"><span>{{ s }}</span>
+                                </label>
+                                <div v-if="bookmarkMapper.choice.subs.length === 0" style="font-size:12px;color:var(--text-muted)">没有二级书签可并入，将自动放入同名子分类</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="justify-content:flex-end">
+                        <button class="btn" @click="bookmarkMapper.choice.visible = false">取消</button>
+                        <button class="btn btn-primary" @click="bmChoiceMode === 'merge' ? bookmarkChoiceMerge() : bookmarkChoiceDiscard()">确定</button>
+                    </div>
+                </div>
+            </div>
+            <!-- 逐级拆分确认弹窗 -->
+            <div v-if="bookmarkMapper.splitConfirm.visible" class="modal-overlay" @click.self="bookmarkMapper.splitConfirm.visible = false">
+                <div class="modal" style="max-width:460px">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-layer-group" style="color:#8b5cf6"></i> 逐级拆分确认</h3>
+                        <button class="btn-icon" @click="bookmarkMapper.splitConfirm.visible = false"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="modal-body">
+                        <p style="font-size:13px;margin:0 0 8px">将把 <b>{{ bookmarkMapper.splitConfirm.mainName }}</b> 作为主分类，其下 <b>{{ bookmarkMapper.splitConfirm.subsCount }}</b> 个子分类（共 {{ bookmarkMapper.splitConfirm.siteCount }} 个网站）。</p>
+                        <template v-if="bookmarkMapper.splitConfirm.sites.length > 0">
+                            <p style="font-size:13px;margin:8px 0 4px">主分类下还有 {{ bookmarkMapper.splitConfirm.sites.length }} 个网站：</p>
+                            <p style="font-size:12px;color:var(--text-muted);margin:0 0 8px">{{ bookmarkMapper.splitConfirm.sites.map(s => s.name).join('、') }}</p>
+                            <div style="border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-size:13px">
+                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:8px">
+                                    <input type="radio" value="discard" v-model="bmChoiceMode"><span>舍弃这些网站</span>
+                                </label>
+                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+                                    <input type="radio" value="merge" v-model="bmChoiceMode"><span>并入到子分类</span>
+                                </label>
+                                <div v-if="bmChoiceMode === 'merge'" style="margin-top:8px;display:flex;flex-direction:column;gap:6px;padding-left:4px">
+                                    <label v-for="s in bookmarkMapper.splitConfirm.subs" :key="s" style="display:flex;align-items:center;gap:6px;cursor:pointer">
+                                        <input type="radio" :value="s" v-model="bookmarkMapper.splitConfirm.selectedSub"><span>{{ s }}</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </template>
+                        <template v-if="bookmarkMapper.splitConfirm.deepInfo.length > 0">
+                            <p style="font-size:13px;margin:10px 0 4px">子分类下还有更深层级文件夹（一级菜单）：</p>
+                            <p style="font-size:12px;color:var(--text-muted);margin:0 0 8px">
+                                <template v-for="(d, di) in bookmarkMapper.splitConfirm.deepInfo" :key="di">{{ d.subName }} 下有 {{ d.folderKeys.length }} 个<template v-if="di < bookmarkMapper.splitConfirm.deepInfo.length - 1">；</template></template>
+                            </p>
+                            <div style="border:1px solid rgba(139,92,246,.45);background:rgba(139,92,246,.05);border-radius:6px;padding:10px 12px;font-size:13px">
+                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:8px">
+                                    <input type="radio" value="discard" v-model="bmDeepMode"><span>丢弃更深层级内容</span>
+                                </label>
+                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+                                    <input type="radio" value="merge" v-model="bmDeepMode"><span>并入对应子分类（深层的网站合并进来）</span>
+                                </label>
+                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-top:8px">
+                                    <input type="radio" value="primary" v-model="bmDeepMode"><span>独立成为一个一级分类</span>
+                                </label>
+                                <div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.5">独立将把“可一级分类”的子分类（有子文件夹且子文件夹内无更深嵌套）整体提升为独立主分类，其子文件夹保留为子分类；可多级分类与只有网站的内容在选择独立时仍会丢弃。</div>
+                            </div>
+                        </template>
+                        <p style="font-size:12px;color:var(--text-muted);margin:10px 0 0;line-height:1.6">拆分后该文件夹从左侧隐藏，可在右侧展开查看；已拆过的层级不会重复拆分。</p>
+                    </div>
+                    <div class="modal-footer" style="justify-content:flex-end">
+                        <button class="btn" @click="bookmarkMapper.splitConfirm.visible = false">取消</button>
+                        <button class="btn btn-primary" @click="bookmarkSplitApply"><i class="fas fa-layer-group"></i> 确认拆分</button>
+                    </div>
                 </div>
             </div>
         </div>

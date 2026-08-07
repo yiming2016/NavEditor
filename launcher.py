@@ -122,6 +122,18 @@ DEPLOY_EXCLUDE_SUBFILE = {
     'assets/fontawesome-5.15.4/attribution.js',
     'assets/fontawesome-5.15.4/LICENSE.txt',
 }
+
+# Cloudflare Workers 专用排除文件（.assetsignore，格式同 .gitignore）。
+# wrangler 上传静态资产时会跳过这些项，避免站点仓库 .git pack（可超 25MiB）导致构建失败。
+# 随每次部署包发布到站点根目录，Cloudflare 构建即自动生效；GitHub Pages 等其他平台忽略该点文件。
+_ASSETSIGNORE_CONTENT = (
+    '# Cloudflare Workers static assets ignore (same format as .gitignore)\n'
+    '.git/\n'
+    '.wrangler/\n'
+    'node_modules/\n'
+    'build/\n'
+    'dist/\n'
+)
 import subprocess
 import math
 import tkinter as tk
@@ -1279,6 +1291,9 @@ class SiteStorage:
         assets_root = os.path.join(self.directory, 'assets')
         if os.path.isdir(assets_root):
             _collect(assets_root, 'assets/', False)
+        # 始终附带 Cloudflare 专用排除文件（去重，避免与版本文件夹内的同名文件重复）
+        files = [f for f in files if f[0] != '.assetsignore']
+        files.append(('.assetsignore', _ASSETSIGNORE_CONTENT, False))
         return files
 
     def build_version_deploy_zip(self, site_id, version_id, group='deploy1'):
@@ -1992,6 +2007,9 @@ class SilentHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 else:
                     files.append((rel, content, is_binary, 0))
 
+        # 始终附带 Cloudflare 专用排除文件（mtime=0 表示快速发布时总是上传，确保规则最新）
+        files = [f for f in files if f[0] != '.assetsignore']
+        files.append(('.assetsignore', _ASSETSIGNORE_CONTENT, False, 0))
         return files
 
     def _build_zip(self, payload):

@@ -1,0 +1,7 @@
+# Cloudflare Workers 静态资产专用排除（.assetsignore，格式同 .gitignore）
+# Wrangler 上传 assets 目录时忽略以下内容，避免 .git 大文件超过 25MiB 限制
+.git/
+.wrangler/
+node_modules/
+build/
+dist/

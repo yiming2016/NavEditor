@@ -17,10 +17,10 @@
       "assets": true
     },
     "includePaths": [],
-    "defaultTop": "quick"
+    "defaultTop": "incremental"
   },
-  "currentVersionId": "初始版本",
+  "currentVersionId": "默认",
   "versionOrder": [
-    "默认模板"
+    "书签导入_2026-08-08"
   ]
 }

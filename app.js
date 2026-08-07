@@ -1652,13 +1652,13 @@ body.modal-open{overflow:auto!important;padding-right:0!important}
             const headerClass = isContinue ? 'text-gray text-lg mb-2' : 'text-gray text-lg mb-4';
 
             children.forEach((sub, subIdx) => {
-                // 如果有多个子分类，每个子分类单独一个区块
-                // 如果只有一个子分类且名字和父类相同，也显示
+                // 如果有多个子分类，每个子分类单独一个区块；只有一个子分类时也显示
                 const showHeader = children.length > 1 || subIdx === 0;
                 if (!showHeader) return;
 
                 const headerId = sub.id;
-                const headerName = children.length > 1 ? sub.name : cat.name;
+                // 标题一律使用子分类名：单子分类时右侧也显示子分类名（而非主分类名）
+                const headerName = sub.name || cat.name;
                 const headerIcon = '<i class="site-tag iconfont icon-tag icon-lg mr-1"></i>';
                 // 第一个子分类的锚点额外标记 data-cat-id，使侧边栏主分类链接（#cat.id）也能定位到这里
                 const catIdAttr = subIdx === 0 ? ` data-cat-id="${this.escapeAttr(cat.id)}"` : '';
@@ -1695,9 +1695,13 @@ body.modal-open{overflow:auto!important;padding-right:0!important}
             const logoPath = site.logo || 'assets/images/logos/default.webp';
             const encodedLogo = Utils.encodeLogoPath(logoPath);
             const safeLogo = encodedLogo.replace(/'/g, "\\'");
-            const onerror = "javascript:this.src='assets\\/images\\/logos\\/default.webp'";
-            logoHtml = `<img class="lazy" src="${safeLogo}" data-src="${safeLogo}"
-                                                onerror="${onerror}" alt="${this.escapeAttr(site.name)}">`;
+            const fbIcon = (site.fallbackIcon || 'fas fa-link').replace(/"/g, '&quot;');
+            const onerror = "this.style.display='none';var n=this.nextElementSibling;if(n){n.style.display='inline-flex';}";
+            logoHtml = `<span style="display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%">
+                                <img class="lazy" src="${safeLogo}" data-src="${safeLogo}" onerror="${onerror}"
+                                     alt="${this.escapeAttr(site.name)}" style="width:100%;height:100%;object-fit:contain">
+                                <i class="${fbIcon}" style="display:none;font-size:20px;color:#8a94a6" aria-hidden="true"></i>
+                            </span>`;
         } else if (bgType === 'color') {
             const letter = this.escape((site.name || '?').charAt(0).toUpperCase());
             const color = this.escapeAttr(bgColor || '#4A90D9');
@@ -2593,6 +2597,119 @@ var theme = {"ajaxurl":"","addico":"https:\/\/nav.baidu.cn\/wp-content\/themes\/
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
     }
+};
+
+// 按分类名自动匹配 FontAwesome 图标（未命中时回退文件夹图标）
+const matchCategoryIcon = (name) => {
+    const n = String(name || '');
+    const lower = n.toLowerCase();
+    const has = (...ks) => ks.some(k => lower.indexOf(k) >= 0);
+    if (has('法律', '商标', '专利', '标准', '法规')) return 'fas fa-balance-scale';
+    if (has('经济', '财经', '金融', '行情')) return 'fas fa-chart-line';
+    if (has('招投', '招标', '投标', '采购')) return 'fas fa-gavel';
+    if (has('政府', '政务', '行政')) return 'fas fa-landmark';
+    if (has('深圳')) return 'fas fa-city';
+    if (has('税务', '社保', '公积金')) return 'fas fa-file-invoice-dollar';
+    if (has('外包', '劳务', '人力')) return 'fas fa-handshake';
+    if (has('营销', '推广', '广告', '运营')) return 'fas fa-bullhorn';
+    if (has('工业', '工厂', '制造')) return 'fas fa-industry';
+    if (has('金属', '钢铁')) return 'fas fa-cubes';
+    if (has('大宗', '商品', '现货')) return 'fas fa-boxes';
+    if (has('承兑', '汇票', '票据')) return 'fas fa-file-invoice';
+    if (has('跨境', '外贸', '出口', '进口')) return 'fas fa-globe-asia';
+    if (has('匿名', '隐私')) return 'fas fa-user-secret';
+    if (has('融钱', '融资', '贷款', '借款', '资金')) return 'fas fa-money-bill-wave';
+    if (has('算力', '云计算', '数据中心')) return 'fas fa-server';
+    if (has('地图', '位置')) return 'fas fa-map-marked-alt';
+    if (has('飞机', '航空', '航班', '机票')) return 'fas fa-plane';
+    if (has('学校', '教育', '学习', '课程', '培训')) return 'fas fa-graduation-cap';
+    if (has('签证', '护照')) return 'fas fa-passport';
+    if (has('攻略', '游记')) return 'fas fa-map-signs';
+    if (has('esim', 'sim', '号卡', '手机卡')) return 'fas fa-sim-card';
+    if (has('无线电', '射频', '电台', '对讲')) return 'fas fa-broadcast-tower';
+    if (has('软件', '开发', '编程', '代码', '前端', '程序')) return 'fas fa-code';
+    if (has('病毒', '查杀', '杀毒')) return 'fas fa-shield-virus';
+    if (has('网站', '建站', '域名', '网页')) return 'fas fa-globe';
+    if (has('查询', '测试', '验证', '检测')) return 'fas fa-search';
+    if (has('存档', '归档', '备份')) return 'fas fa-archive';
+    if (has('设计', '绘画', '图像', '图片')) return 'fas fa-palette';
+    if (has('控制台', '终端', '命令')) return 'fas fa-terminal';
+    if (has('环境', '部署', '运维')) return 'fas fa-cogs';
+    if (has('教程', '文档', '手册')) return 'fas fa-book-open';
+    if (has('图形化', '可视化')) return 'fas fa-th-large';
+    if (has('交易', '买卖', '商城')) return 'fas fa-exchange-alt';
+    if (has('seo', '排名', '优化')) return 'fas fa-search-plus';
+    if (has('邮箱', '邮件', 'mail')) return 'fas fa-envelope';
+    if (has('docker', '容器')) return 'fab fa-docker';
+    if (has('内网', '穿透', '隧道')) return 'fas fa-network-wired';
+    if (has('下载', '资源站')) return 'fas fa-download';
+    if (has('3d', '打印', '模型')) return 'fas fa-print';
+    if (has('视频', '影视', '电影', '动画')) return 'fas fa-video';
+    if (has('电子书', '小说', '读书')) return 'fas fa-book';
+    if (has('资源', '素材')) return 'fas fa-database';
+    if (has('个性', '美化', '壁纸')) return 'fas fa-paint-brush';
+    if (has('论坛', '社区', '贴吧')) return 'fas fa-comments';
+    if (has('博客', '随笔')) return 'fas fa-blog';
+    if (has('音乐', '音频', '唱歌')) return 'fas fa-music';
+    if (has('系统', '操作系统', 'windows')) return 'fas fa-desktop';
+    if (has('工具', '工具箱')) return 'fas fa-tools';
+    if (has('语音', 'tts', '朗读', '配音')) return 'fas fa-volume-up';
+    if (has('pdf')) return 'fas fa-file-pdf';
+    if (has('ai', '智能', '机器人', '模型')) return 'fas fa-robot';
+    if (has('摄影', '相机', '拍照')) return 'fas fa-camera';
+    if (has('网安', '安全', '黑客', '渗透')) return 'fas fa-shield-alt';
+    if (has('电报', 'telegram')) return 'fab fa-telegram';
+    if (has('开源', 'github', 'git')) return 'fas fa-code-branch';
+    if (has('生化', '基因', 'dna', '医疗', '健康')) return 'fas fa-dna';
+    if (has('香港', '城市')) return 'fas fa-university';
+    return 'fas fa-folder';
+};
+
+// 按网站名称自动匹配贴切图标（logo 加载失败/没有图标时使用）
+const matchSiteIcon = (name) => {
+    const n = String(name || '');
+    const lower = n.toLowerCase();
+    const has = (...ks) => ks.some(k => lower.indexOf(k) >= 0);
+    if (has('github', 'git', 'gitee', 'coding')) return 'fab fa-github';
+    if (has('百度', 'baidu', '谷歌', 'google', 'bing', '必应', '搜索', '查')) return 'fas fa-search';
+    if (has('youtube', 'youtu', 'b站', 'bilibili', '视频', '影视', '电影', '抖音', '快手', '优酷', '腾讯视频', '爱奇艺')) return 'fas fa-play-circle';
+    if (has('音乐', '网易云', 'qq音乐', '酷狗', 'spotify', 'soundcloud', '音频', '电台')) return 'fas fa-music';
+    if (has('邮箱', 'mail', 'gmail', 'outlook', '邮')) return 'fas fa-envelope';
+    if (has('地图', '地图', '高德', '百度地图', 'google maps', '位置')) return 'fas fa-map-marked-alt';
+    if (has('翻译', 'translate', '词典', '字典')) return 'fas fa-language';
+    if (has('chatgpt', 'gpt', 'ai', '人工智能', '文心', '通义', '星火', '机器人', 'copilot', 'claude', 'midjourney', 'sd ', 'stable')) return 'fas fa-robot';
+    if (has('知乎', '贴吧', '论坛', 'bbs', 'reddit', '社区', 'discord', 'qq群', '电报', 'telegram')) return 'fas fa-comments';
+    if (has('博客', 'blog', 'wordpress', '简书')) return 'fas fa-blog';
+    if (has('下载', 'download', '网盘', '迅雷', '软件', '应用')) return 'fas fa-download';
+    if (has('淘宝', '天猫', '京东', '拼多多', '亚马逊', 'amazon', '购物', '商城', '买', '1688')) return 'fas fa-shopping-cart';
+    if (has('银行', '招商', '工商', '建设', '农业', '中国银行', 'icbc', 'cmb', 'ccb', '金融')) return 'fas fa-university';
+    if (has('股票', '行情', '基金', '证券', '炒股', '同花顺', '东方财富')) return 'fas fa-chart-line';
+    if (has('政府', '政务', '.gov', '税务', '社保', '海关', '工商')) return 'fas fa-landmark';
+    if (has('学校', '大学', '学院', 'edu', '学习', '课程', '考试', '教育')) return 'fas fa-graduation-cap';
+    if (has('招聘', '求职', '前程无忧', '智联', 'boss', '猎聘', '工作')) return 'fas fa-briefcase';
+    if (has('新闻', '资讯', '日报', '新浪', '网易', '凤凰', '头条', '36kr', '虎嗅')) return 'fas fa-newspaper';
+    if (has('机票', '航空', '航班', '飞机', '航旅', '携程', '飞猪')) return 'fas fa-plane';
+    if (has('酒店', '民宿', 'booking', 'agoda', '爱彼迎')) return 'fas fa-hotel';
+    if (has('医院', '医疗', '健康', '医生', '挂号', '药')) return 'fas fa-hospital';
+    if (has('设计', 'ps ', 'photoshop', 'figma', 'sketch', 'ui', 'ux', '配色')) return 'fas fa-palette';
+    if (has('编程', '代码', '开发', '文档', 'api', '开发者', 'python', 'java', 'javascript', 'node', 'docker', 'linux')) return 'fas fa-code';
+    if (has('安全', '黑客', '漏洞', '渗透', '病毒', '杀毒')) return 'fas fa-shield-alt';
+    if (has('网盘', '云盘', 'onedrive', 'google drive', 'dropbox', '坚果云')) return 'fas fa-cloud';
+    if (has('pdf', '文档', 'office', 'wps', 'word', 'excel', 'ppt')) return 'fas fa-file-alt';
+    if (has('游戏', 'steam', 'epic', 'playstation', 'xbox', 'switch')) return 'fas fa-gamepad';
+    if (has('微信', 'wechat', 'qq', '社交')) return 'fab fa-weixin';
+    if (has('twitter', '推特', 'x.com', '微博', 'weibo')) return 'fab fa-twitter';
+    if (has('facebook', '脸书')) return 'fab fa-facebook';
+    if (has('instagram', 'ins ')) return 'fab fa-instagram';
+    if (has('linkedin', '领英')) return 'fab fa-linkedin';
+    if (has('知乎')) return 'fab fa-zhihu';
+    if (has('维基', 'wikipedia', '百科')) return 'fas fa-book';
+    if (has('天气', '气候')) return 'fas fa-cloud-sun';
+    if (has('翻译')) return 'fas fa-language';
+    if (has('图片', '照片', '壁纸', '素材', 'icon', '图标')) return 'fas fa-images';
+    if (has('工具', '工具箱', '转换', '压缩', '生成')) return 'fas fa-tools';
+    if (has('翻译')) return 'fas fa-language';
+    return 'fas fa-link';
 };
 
 // ==================== 存储管理（文件夹式） ====================
@@ -3657,6 +3774,19 @@ const GitHubSync = {
             const d = await postJson(`/repos/${owner}/${repo}/git/trees`, { tree: entries });
             return d.sha;
         };
+        // 分片构建树：GitHub 一次性创建过大 tree 会超时（官方建议“building the tree incrementally”）。
+        // 把条目分批，用 base_tree 把上一批结果作为下一批的基础，最终得到完整 tree。
+        const buildTreeSharded = async (entries, batchSize = 120) => {
+            let treeSha = null;
+            for (let i = 0; i < entries.length; i += batchSize) {
+                const batch = entries.slice(i, i + batchSize);
+                const body = { tree: batch };
+                if (treeSha) body.base_tree = treeSha;
+                const d = await postJson(`/repos/${owner}/${repo}/git/trees`, body);
+                treeSha = d.sha;
+            }
+            return treeSha;
+        };
         const createCommit = async (message, treeSha, parentSha) => {
             const d = await postJson(`/repos/${owner}/${repo}/git/commits`, {
                 message, tree: treeSha, parents: parentSha ? [parentSha] : []
@@ -3748,7 +3878,21 @@ const GitHubSync = {
             for (let i = 0; i < onlyFiles.length; i++) {
                 entries.push({ path: onlyFiles[i].path, mode: '100644', type: 'blob', sha: blobShas[i] });
             }
-            const newTreeSha = await createTree(entries);
+            let newTreeSha;
+            try {
+                // 文件较多（>300）时自动分片构建，避免 GitHub 一次性建树超时
+                newTreeSha = (opts.shardTree || entries.length > 300)
+                    ? await buildTreeSharded(entries)
+                    : await createTree(entries);
+            } catch (e) {
+                const msg = String((e && e.message) || '');
+                if (/timed out|too large|timeout|large to process|502|504/i.test(msg)) {
+                    const err = new Error('GitHub 一次性创建文件树超时/过大（文件较多）。已提供“分片发布”方案，可自动分批构建解决。');
+                    err.code = 'TREE_TOO_LARGE';
+                    throw err;
+                }
+                throw e;
+            }
             // 3) 创建 commit 并更新分支引用（一次性原子提交）
             const newCommitSha = await createCommit(`Deploy via NavEditor (${onlyFiles.length} 个文件)`, newTreeSha, headSha);
             try {
@@ -4239,6 +4383,9 @@ const App = {
         const publishConfirmApproved = ref(false);
         const publishPending = ref(null);   // { forceFull, sourceData, sourceLabel, sourceVersionId }
         const publishSaveDone = ref(false);
+        // GitHub 建树超时/过大时的“分片发布”方案
+        const githubShardTree = ref(false);       // 本次发布强制分片构建树
+        const treeTooLargeContext = ref(null);    // 失败时的发布上下文，供一键重试
         const publishConfirmText = computed(() => {
             const acc = cfAccounts.value.find(a => a.id === activeAccountId.value);
             const isFull = !!(publishPending.value && publishPending.value.forceFull);
@@ -4363,6 +4510,7 @@ const App = {
             publishSettings: false,  // 发布设置弹窗
             publishConfirm: false,   // 全量发布确认弹窗
             publishSavePrompt: false, // 发布前未保存询问
+            treeTooLarge: false,     // GitHub 建树超时/过大：提供分片发布方案
             templateSettings: false, // 默认模板设置弹窗
             seo: false,              // SEO 营销配置弹窗
             versionSync: false,      // 版本同步信息弹窗
@@ -4679,7 +4827,7 @@ sidebarTop: {
             'menuKeyEdit', 'headerConfig', 'sidebarTop', 'dailyText', 'adSlots', 'wallpaperLibrary',
             'addFooterMenu', 'editFooterMenu', 'iconPicker', 'iconEditor', 'imageCropper', 'unsavedAlert',
             // 后加的弹窗排在最后（最上层）：确认弹窗、版本同步信息、SEO 营销配置
-            'confirm', 'versionSync', 'seo'
+            'confirm', 'versionSync', 'seo', 'templateSettings', 'shareModules', 'noVersionConfirm'
         ];
 
         // ESC / Enter 键处理弹窗
@@ -4805,6 +4953,7 @@ sidebarTop: {
         };
         onMounted(() => {
             document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keydown', bmKeydown);
             document.addEventListener('click', _docClickHandler);
             window.addEventListener('resize', _winResizeHandler);
         });
@@ -5091,12 +5240,7 @@ sidebarTop: {
             // 预加载版本列表，供顶部栏显示「当前版本名称」（无需先打开历史弹窗）
             try { await refreshVersions(); } catch (e) { /* 忽略，历史弹窗可重试 */ }
             // 自动选中当前/最新版本：保证页脚等保存落到版本部署目录，而非兜底根 footer/
-            if (!currentEditingVersionId.value && versions.value && versions.value.length) {
-                const _sorted = [...versions.value].sort((a, b) => b.timestamp - a.timestamp);
-                currentEditingVersionId.value = _sorted[0].id;
-                data.currentVersionId = _sorted[0].id;
-                try { await persistData({ silent: true, mark: false }); } catch (_) {}
-            }
+            try { await restoreCurrentVersion(); } catch (e) { /* 忽略，用户可手动选择版本 */ }
 
             // 加载部署账号（从磁盘 password/ 文件夹按类型读取，替代旧的 localStorage 存储）
             await loadAccountsFromServer();
@@ -5127,6 +5271,7 @@ sidebarTop: {
         // 组件卸载时移除全局监听，避免重复注册 / 内存泄漏
         onUnmounted(() => {
             document.removeEventListener('keydown', onKeyDown);
+            document.removeEventListener('keydown', bmKeydown);
             document.removeEventListener('click', _docClickHandler);
             window.removeEventListener('resize', _winResizeHandler);
             window.removeEventListener('beforeunload', beforeUnloadHandler);
@@ -7749,6 +7894,11 @@ sidebarTop: {
                 files.push({ name: sf.path, content: sf.content, type: 'text/plain;charset=utf-8' });
             }
 
+            // Cloudflare 专用排除文件：始终随部署包发布，避免站点仓库 .git 超过 25MiB 限制
+            if (!files.some(f => f.name === '.assetsignore')) {
+                files.push({ name: '.assetsignore', content: '# Cloudflare Workers static assets ignore (same format as .gitignore)\n.git/\n.wrangler/\nnode_modules/\nbuild/\ndist/\n', type: 'text/plain;charset=utf-8' });
+            }
+
             return files;
         };
 
@@ -8276,6 +8426,10 @@ sidebarTop: {
                 await Storage.deleteVersion(id);
                 if (Array.isArray(data.versionOrder)) data.versionOrder = data.versionOrder.filter(x => x !== id);
                 await refreshVersions();
+                // 删除的是当前选中的版本时，自动重新选中（最新版本），避免指向已删除版本
+                if (currentEditingVersionId.value === id || data.currentVersionId === id) {
+                    await restoreCurrentVersion();
+                }
                 showToast('版本已删除', 'success');
             };
             askConfirm({
@@ -8472,6 +8626,810 @@ sidebarTop: {
             inp.click();
         };
 
+        // === Excel 批量网址导入（.xlsx / .csv）===
+        // 表头识别（中文/英文列名均可，不依赖列顺序），Excel 行顺序即页面卡片横向顺序
+        const EXCEL_HEADER_MAP = {
+            '分类': 'category', '类别': 'category', '分类名称': 'category', 'category': 'category',
+            '子分类': 'subcategory', '子类别': 'subcategory', '子分类名称': 'subcategory', 'subcategory': 'subcategory',
+            '名称': 'name', '网站名称': 'name', '站点名称': 'name', '标题': 'name', 'name': 'name',
+            '网址': 'url', '链接': 'url', '地址': 'url', '网站地址': 'url', '网站链接': 'url', 'url': 'url',
+            '描述': 'description', '简介': 'description', '说明': 'description', 'description': 'description',
+            '图标': 'icon', 'logo': 'icon', 'icon': 'icon'
+        };
+        const importExcelVersion = () => {
+            const inp = document.createElement('input');
+            inp.type = 'file';
+            inp.accept = '.xlsx,.csv';
+            inp.onchange = async () => {
+                const file = inp.files && inp.files[0];
+                if (!file) return;
+                try {
+                    if (!window.XLSX) throw new Error('Excel 解析库未加载（lib/xlsx.full.min.js）');
+                    showToast('正在解析 Excel...', 'info', 8000);
+                    // CSV 用字符串解析保证 UTF-8 中文不乱码；xlsx 用字节数组解析
+                    const wb = /\.csv$/i.test(file.name)
+                        ? window.XLSX.read(await file.text(), { type: 'string' })
+                        : window.XLSX.read(await file.arrayBuffer(), { type: 'array' });
+                    const ws = wb.Sheets[wb.SheetNames[0]];
+                    if (!ws) throw new Error('Excel 中没有工作表');
+                    const rows = window.XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+                    // 扫描前 15 行定位表头：需要同时含“名称”和“网址”列（表头前可放说明文字）
+                    let headerIdx = -1, colMap = null;
+                    for (let i = 0; i < Math.min(rows.length, 15); i++) {
+                        const row = rows[i] || [];
+                        const map = {};
+                        for (let c = 0; c < row.length; c++) {
+                            const h = String(row[c] || '').trim().toLowerCase();
+                            if (EXCEL_HEADER_MAP[h]) map[EXCEL_HEADER_MAP[h]] = c;
+                        }
+                        if (map.name !== undefined && map.url !== undefined) {
+                            headerIdx = i;
+                            colMap = map;
+                            break;
+                        }
+                    }
+                    if (headerIdx < 0) throw new Error('未找到表头行（需要包含“名称”和“网址”列）');
+                    // 逐行构建分类树：保持 Excel 行顺序 = 页面卡片横向顺序
+                    const categories = [];
+                    const catIndex = {};
+                    const subIndex = {};
+                    const seenUrls = new Set();
+                    let skipped = 0, added = 0;
+                    for (let i = headerIdx + 1; i < rows.length; i++) {
+                        const row = rows[i] || [];
+                        const get = (key) => {
+                            const c = colMap[key];
+                            if (c === undefined) return '';
+                            const v = row[c];
+                            return (v === null || v === undefined) ? '' : String(v).trim();
+                        };
+                        const name = get('name');
+                        let url = get('url');
+                        if (!name && !url) continue; // 空行
+                        if (!url) { skipped++; continue; }
+                        if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+                        if (seenUrls.has(url)) { skipped++; continue; }
+                        seenUrls.add(url);
+                        const catName = get('category') || '未分类';
+                        const subName = get('subcategory') || catName; // 无子分类时自动建同名子分类
+                        if (!catIndex[catName]) {
+                            const cat = {
+                                id: Utils.md5Like(catName + Date.now() + Math.random()),
+                                name: catName,
+                                icon: matchCategoryIcon(catName),
+                                iconColor: '#b2b8be',
+                                continueView: false,
+                                children: []
+                            };
+                            categories.push(cat);
+                            catIndex[catName] = cat;
+                        }
+                        const cat = catIndex[catName];
+                        const subKey = catName + '|' + subName;
+                        if (!subIndex[subKey]) {
+                            const sub = {
+                                id: Utils.md5Like(subName + '_sub' + Date.now() + Math.random()),
+                                name: subName,
+                                sites: []
+                            };
+                            cat.children.push(sub);
+                            subIndex[subKey] = sub;
+                        }
+                        const sub = subIndex[subKey];
+                        sub.sites.push({
+                            name: name || url.replace(/^https?:\/\//, '').replace(/\/.*$/, ''),
+                            url,
+                            description: get('description'),
+                            logo: '',
+                            bgType: 'image',
+                            bgColor: '',
+                            bgText: '',
+                            blink: { enabled: false, mode: 'count', count: 3, duration: 300, interval: 150, color: '#ff6b6b', templateName: '', intensity: 'normal' }
+                        });
+                        added++;
+                    }
+                    if (added === 0) throw new Error('没有可导入的网址（请检查表头与数据行）');
+                    const total = categories.reduce((s, c) => s + c.children.reduce((x, y) => x + y.sites.length, 0), 0);
+                    askConfirm({
+                        title: 'Excel 导入确认',
+                        message: `识别到 ${categories.length} 个分类、${total} 条网址`,
+                        note: `将按 Excel 行顺序生成新的历史版本（行序即页面横向顺序）${skipped ? `；跳过 ${skipped} 条（无网址或重复）` : ''}。不会覆盖当前编辑内容。`,
+                        confirmText: '导入',
+                        danger: false,
+                        icon: 'fas fa-file-excel',
+                        onConfirm: async () => {
+                            try {
+                                showToast('正在生成版本...', 'info', 6000);
+                                const base = JSON.parse(JSON.stringify(data));
+                                const imported = { ...base, categories };
+                                const versionName = 'Excel导入 ' + (file.name || '').replace(/\.(xlsx|csv)$/i, '');
+                                const saved = await Storage.saveVersion(imported, versionName);
+                                const deployFiles = await prepareVersionDeployFiles(imported);
+                                await Storage.writeVersionDeploy(Storage.getCurrentProfileId(), saved.id, 'deploy1', deployFiles);
+                                if (!Array.isArray(data.versionOrder)) data.versionOrder = [];
+                                data.versionOrder = [saved.id].concat(data.versionOrder.filter(id => id !== saved.id));
+                                await refreshVersions();
+                                showToast(`Excel 导入完成：${total} 条网址`, 'success');
+                            } catch (e) {
+                                showToast('Excel 导入失败：' + (e.message || e), 'error');
+                            }
+                        }
+                    });
+                } catch (e) {
+                    showToast('Excel 导入失败：' + (e.message || e), 'error');
+                }
+            };
+            inp.click();
+        };
+
+        // === Excel 网址清单导出（.xlsx）：版本内卡片顺序原样写入行顺序 ===
+        const exportVersionExcel = (version) => {
+            try {
+                if (!window.XLSX) throw new Error('Excel 解析库未加载（lib/xlsx.full.min.js）');
+                const rows = [['分类', '子分类', '名称', '网址', '描述']];
+                const cats = (version && version.data && Array.isArray(version.data.categories)) ? version.data.categories : [];
+                for (const cat of cats) {
+                    for (const sub of (cat.children || [])) {
+                        for (const site of (sub.sites || [])) {
+                            rows.push([
+                                cat.name || '',
+                                sub.name || '',
+                                (site && site.name) || '',
+                                (site && site.url) || '',
+                                (site && site.description) || ''
+                            ]);
+                        }
+                    }
+                }
+                if (rows.length === 1) throw new Error('该版本没有可导出的网址');
+                const ws = window.XLSX.utils.aoa_to_sheet(rows);
+                const wb = window.XLSX.utils.book_new();
+                window.XLSX.utils.book_append_sheet(wb, ws, '网址清单');
+                const out = window.XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                const blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                const name = (version && (version.note || version.name || version.id)) || '版本';
+                Utils.download(name + '.xlsx', blob, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+                showToast('已导出 Excel 网址清单', 'success');
+            } catch (e) {
+                showToast('Excel 导出失败：' + (e.message || e), 'error');
+            }
+        };
+
+        // === 书签 Excel 生成器（浏览器导出的 HTML 书签 → 系统可识别的 .xlsx）===
+        // 解析 Netscape 书签格式（DL/DT/H3/A 嵌套）
+        const parseBookmarkTree = (dl) => {
+            const items = [];
+            const dts = dl ? Array.from(dl.children).filter(el => el.tagName === 'DT') : [];
+            for (const dt of dts) {
+                const h3 = Array.from(dt.children).find(el => el.tagName === 'H3');
+                const a = Array.from(dt.children).find(el => el.tagName === 'A');
+                if (h3) {
+                    const folder = { type: 'folder', name: h3.textContent.trim() || '未命名文件夹', children: [] };
+                    const nested = Array.from(dt.children).find(el => el.tagName === 'DL');
+                    if (nested) folder.children = parseBookmarkTree(nested);
+                    items.push(folder);
+                } else if (a && a.getAttribute('href')) {
+                    const href = (a.getAttribute('href') || '').trim();
+                    if (/^(https?|ftp):/i.test(href)) {
+                        items.push({ type: 'bookmark', name: a.textContent.trim() || href, url: href });
+                    }
+                }
+            }
+            return items;
+        };
+        const countBookmarks = (nodes) => {
+            let folders = 0, bookmarks = 0;
+            for (const n of nodes) {
+                if (n.type === 'bookmark') bookmarks++;
+                else {
+                    folders++;
+                    const s = countBookmarks(n.children);
+                    folders += s.folders;
+                    bookmarks += s.bookmarks;
+                }
+            }
+            return { folders, bookmarks };
+        };
+        // 浏览器导出时常见的顶层容器文件夹（书签栏等），解析后自动展开，不占用层级
+        const BOOKMARK_CONTAINER_NAMES = [
+            '书签栏', '其他书签', '移动设备书签', '书签菜单', '收藏夹栏', '收藏夹',
+            'Bookmarks bar', 'Other bookmarks', 'Mobile bookmarks', 'Bookmarks menu'
+        ];
+        // 按映射选项生成 Excel 行（保持书签原有顺序）
+        const bookmarkToRows = (nodes, depth, mainLevel, urlAs, deeper, catName, rows) => {
+            for (const n of nodes) {
+                if (n.type === 'bookmark') {
+                    if (catName) {
+                        if (urlAs === 'subcategory') {
+                            rows.push([catName, n.name, n.name, n.url, '']);
+                        } else {
+                            rows.push([catName, '', n.name, n.url, '']);
+                        }
+                    }
+                    continue;
+                }
+                if (depth === mainLevel) {
+                    // 当前文件夹作为主分类
+                    bookmarkToRows(n.children, depth + 1, mainLevel, urlAs, deeper, n.name, rows);
+                } else if (depth < mainLevel) {
+                    // 层级不够：继续下钻，不建立分类
+                    bookmarkToRows(n.children, depth + 1, mainLevel, urlAs, deeper, catName, rows);
+                } else if (deeper === 'merge') {
+                    // 更深层级文件夹：并入上级主分类
+                    bookmarkToRows(n.children, depth + 1, mainLevel, urlAs, deeper, catName, rows);
+                }
+                // deeper === 'ignore' 时更深层级文件夹直接跳过
+            }
+        };
+
+        // === 书签映射器：左侧原书签多级树 → 右键拆分 → 右侧两级（主分类/子分类）===
+        const bookmarkMapper = reactive({
+            open: false,
+            flat: [],          // 左侧展平树：{ key, name, type, depth, url, parentKey, expanded, folder }
+            map: {},           // key -> 原始节点
+            right: [],         // 右侧映射结果：{ name, subs: [{ name, sites: [{ name, url }] }] }
+            ctx: { visible: false, x: 0, y: 0, key: null },
+            splitDone: {},     // key -> 逐级拆分已拆组数
+            moved: new Set(),  // 已移动到右侧的文件夹 key（左侧不再显示）
+            seq: 0,
+            choice: { visible: false, catName: '', subs: [], sites: [], deepSubs: [], selectedSub: '' },
+            splitConfirm: { visible: false, key: '', mainKey: '', subKey: '', mainName: '', subName: '', subsCount: 0, siteCount: 0, sites: [], subs: [], selectedSub: '', deepInfo: [], primaryableSubs: [] }
+        });
+        const bmChoiceMode = ref('discard');
+        const bmDeepMode = ref('discard');
+        const flattenBookmarkNodes = (nodes, depth, parentKey) => {
+            for (const n of nodes) {
+                const key = 'bm_' + (++bookmarkMapper.seq);
+                bookmarkMapper.map[key] = n;
+                bookmarkMapper.flat.push({
+                    key, name: n.name, type: n.type, depth, url: n.url || '',
+                    parentKey, expanded: depth < 1, folder: n.type === 'folder'
+                });
+                if (n.type === 'folder') flattenBookmarkNodes(n.children, depth + 1, key);
+            }
+        };
+        const openBookmarkMapper = (tree) => {
+            bookmarkMapper.open = true;
+            bookmarkMapper.flat = [];
+            bookmarkMapper.map = {};
+            bookmarkMapper.right = [];
+            bookmarkMapper.ctx.visible = false;
+            bookmarkMapper.splitDone = {};
+            bookmarkMapper.moved = new Set();
+            bookmarkMapper.seq = 0;
+            bookmarkMapper.choice.visible = false;
+            bmChoiceMode.value = 'discard';
+            bmUndoStack.value = [];
+            bmRedoStack.value = [];
+            flattenBookmarkNodes(tree, 0, null);
+        };
+        const closeBookmarkMapper = () => { bookmarkMapper.open = false; };
+        const toggleBookmarkNode = (item) => { item.expanded = !item.expanded; };
+        // 单击：先关闭右键菜单；文件夹单击切换展开/收起（展开的单击即收起）
+        const clickBookmarkNode = (item) => {
+            closeBookmarkCtx();
+            if (item && item.folder) toggleBookmarkNode(item);
+        };
+        // 按展开状态过滤：只有父级全部展开的节点才显示（单击收起时子节点隐藏）
+        const visibleBookmarkFlat = computed(() => {
+            const out = [];
+            const expandedKeys = new Set();
+            for (const item of bookmarkMapper.flat) {
+                if (bookmarkMapper.moved.has(item.key)) continue; // 已移动到右侧的不再显示
+                if (item.depth === 0 || expandedKeys.has(item.parentKey)) {
+                    out.push(item);
+                    if (item.folder && item.expanded) expandedKeys.add(item.key);
+                }
+            }
+            return out;
+        });
+        // 左侧统计：书签文件夹数 / 网站（网址）数
+        const bookmarkLeftStats = computed(() => {
+            let folders = 0, sites = 0;
+            for (const item of bookmarkMapper.flat) {
+                if (item.folder) folders++; else sites++;
+            }
+            return { folders, sites };
+        });
+        // 右侧统计：主分类数 / 子分类数 / 网站数
+        const bookmarkRightStats = computed(() => {
+            let cats = bookmarkMapper.right.length, subs = 0, sites = 0;
+            for (const cat of bookmarkMapper.right) {
+                subs += cat.subs.length;
+                for (const sub of cat.subs) sites += sub.sites.length;
+            }
+            return { cats, subs, sites };
+        });
+        // 反查原始节点对应的 key（逐级拆分等场景）
+        const findKeyByNode = (node) => {
+            for (const k in bookmarkMapper.map) {
+                if (bookmarkMapper.map[k] === node) return k;
+            }
+            return null;
+        };
+        const markMoved = (key) => { if (key) bookmarkMapper.moved.add(key); };
+        const openBookmarkCtx = (e, item) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!item.folder) return;
+            bookmarkMapper.ctx = { visible: true, x: e.clientX, y: e.clientY, key: item.key };
+        };
+        const closeBookmarkCtx = () => { bookmarkMapper.ctx.visible = false; };
+        // 子树最大文件夹层级数（自身算第 1 级）
+        const maxFolderDepth = (node) => {
+            if (!node || node.type !== 'folder') return 0;
+            let d = 1;
+            for (const c of (node.children || [])) {
+                if (c.type === 'folder') d = Math.max(d, 1 + maxFolderDepth(c));
+            }
+            return d;
+        };
+        // 右键菜单是否显示「逐级拆分」：该文件夹下还有至少 2 层（即 3 级及以上，可拆出最深的两级）
+        const bookmarkCtxShowSplit = computed(() => {
+            const key = bookmarkMapper.ctx.key;
+            if (!key) return false;
+            const node = bookmarkMapper.map[key];
+            return !!(node && node.type === 'folder' && maxFolderDepth(node) >= 3);
+        });
+        // 右键菜单是否显示「一级分类」：必须有子文件夹（只有网站的文件夹只能做二级分类）
+        const bookmarkCtxShowPrimary = computed(() => {
+            const key = bookmarkMapper.ctx.key;
+            if (!key) return false;
+            const node = bookmarkMapper.map[key];
+            return !!(node && node.type === 'folder' && (node.children || []).some(c => c.type === 'folder'));
+        });
+        // 右键菜单是否显示「二级分类」：有子文件夹（可一级/可多级）都不允许做二级分类，只有网站的文件夹才允许
+        const bookmarkCtxShowSecondary = computed(() => {
+            const key = bookmarkMapper.ctx.key;
+            if (!key) return false;
+            const node = bookmarkMapper.map[key];
+            return !!(node && node.type === 'folder' && !(node.children || []).some(c => c.type === 'folder'));
+        });
+        // 文件夹是否可逐级拆分（子树 3 级及以上，含子文件夹），用于左侧行内图标显示
+        const isBookmarkSplitable = (item) => {
+            if (!item || !item.folder) return false;
+            const node = bookmarkMapper.map[item.key];
+            return !!(node && maxFolderDepth(node) >= 3);
+        };
+        // 是否适合一级分类：该文件夹下有多个子文件夹（无直接网站），且子文件夹内没有更深文件夹
+        const isBookmarkPrimaryReady = (item) => {
+            if (!item || !item.folder) return false;
+            const node = bookmarkMapper.map[item.key];
+            if (!node || !Array.isArray(node.children)) return false;
+            const kids = node.children;
+            if (kids.length < 2) return false;                 // 需要“数个”子文件夹
+            if (kids.some(c => c.type !== 'folder')) return false; // A 中有网站 -> 不适合
+            for (const b of kids) {
+                if ((b.children || []).some(c => c.type === 'folder')) return false; // B 中有更深文件夹
+            }
+            return true;
+        };
+        // 是否可二级分类（只有网站，无子文件夹）：左侧显示「二级」标注
+        const isBookmarkSecondaryReady = (item) => {
+            if (!item || !item.folder) return false;
+            const node = bookmarkMapper.map[item.key];
+            return !!(node && !(node.children || []).some(c => c.type === 'folder'));
+        };
+        // 收集子分类（二级文件夹）及其直接网站
+        const collectSubs = (node) => {
+            const subs = [];
+            for (const c of (node.children || [])) {
+                if (c.type === 'folder') {
+                    const sites = [];
+                    for (const s of (c.children || [])) {
+                        if (s.type === 'bookmark') sites.push({ name: s.name, url: s.url });
+                    }
+                    subs.push({ name: c.name, sites, expanded: true });
+                }
+            }
+            return subs;
+        };
+        // 把节点作为主分类加入右侧；siteTarget 为并入的子分类名（null=舍弃直接网站）
+        const addPrimaryFromNode = (node, siteTarget, sourceKey) => {
+            const cat = { name: node.name, subs: collectSubs(node), sourceKey: sourceKey || null, expanded: true };
+            const directSites = (node.children || []).filter(c => c.type === 'bookmark');
+            if (directSites.length > 0 && siteTarget) {
+                let t = cat.subs.find(s => s.name === siteTarget);
+                if (!t) {
+                    // 目标子分类不存在（如无二级书签可并入）时自动建同名子分类
+                    t = { name: siteTarget, sites: [] };
+                    cat.subs.push(t);
+                }
+                directSites.forEach(s => t.sites.push({ name: s.name, url: s.url }));
+            }
+            bookmarkMapper.right.push(cat);
+        };
+        // 右键菜单：一级分类（该文件夹作为主分类；有直接网站时弹并入选择）
+        const bookmarkToPrimary = () => {
+            const key = bookmarkMapper.ctx.key;
+            const node = bookmarkMapper.map[key];
+            bookmarkMapper.ctx.visible = false;
+            if (!node || node.type !== 'folder') return;
+            // 只有网站的文件夹只能作为二级分类（子分类），不能成为一级分类
+            if (!(node.children || []).some(c => c.type === 'folder')) {
+                showToast('该文件夹只有网站，只能作为二级分类（子分类），请使用右键菜单「二级分类」', 'warning');
+                return;
+            }
+            const directSites = (node.children || []).filter(c => c.type === 'bookmark');
+            // 子文件夹内还有更深文件夹（会被静默丢弃），需要一并提示
+            const deepSubs = (node.children || []).filter(c => c.type === 'folder' && (c.children || []).some(x => x.type === 'folder'));
+            if (directSites.length > 0 || deepSubs.length > 0) {
+                bmChoiceMode.value = 'discard';
+                bookmarkMapper.choice = {
+                    visible: true,
+                    catName: node.name,
+                    subs: collectSubs(node).map(s => s.name),
+                    sites: directSites.map(s => s.name),
+                    deepSubs: deepSubs.map(s => s.name),
+                    selectedSub: ''
+                };
+            } else {
+                bmPushUndo(); // 修改前快照（moved / right 均未变）
+                markMoved(key);
+                addPrimaryFromNode(node, null, key);
+            }
+        };
+        // 并入选择弹窗：舍弃 / 并入到指定子分类
+        const bookmarkChoiceDiscard = () => {
+            const key = bookmarkMapper.ctx.key;
+            bmPushUndo();
+            markMoved(key);
+            addPrimaryFromNode(bookmarkMapper.map[key], null, key);
+            bookmarkMapper.choice.visible = false;
+        };
+        const bookmarkChoiceMerge = () => {
+            let target = bookmarkMapper.choice.selectedSub;
+            if (!target) {
+                if (bookmarkMapper.choice.subs.length === 0) {
+                    // 没有二级书签可并入：自动建与主分类同名的子分类
+                    target = bookmarkMapper.choice.catName;
+                } else {
+                    showToast('请选择要并入的二级书签', 'warning');
+                    return;
+                }
+            }
+            if (!target) {
+                showToast('请选择要并入的二级书签', 'warning');
+                return;
+            }
+            const key = bookmarkMapper.ctx.key;
+            bmPushUndo();
+            markMoved(key);
+            addPrimaryFromNode(bookmarkMapper.map[key], target, key);
+            bookmarkMapper.choice.visible = false;
+        };
+        // 右键菜单：二级分类（该文件夹作为子分类；无主分类时自动建“未分类”）
+        const bookmarkToSecondary = () => {
+            const key = bookmarkMapper.ctx.key;
+            const node = bookmarkMapper.map[key];
+            bookmarkMapper.ctx.visible = false;
+            if (!node || node.type !== 'folder') return;
+            // 有子文件夹（可一级/可多级分类）都不允许作为二级分类，只有网站的文件夹才允许
+            if ((node.children || []).some(c => c.type === 'folder')) {
+                showToast('该文件夹包含子文件夹，不能作为二级分类，请使用「一级分类」或「逐级拆分」', 'warning');
+                return;
+            }
+            if (bookmarkMapper.moved.has(key)) {
+                showToast('该书签已拆分完毕', 'info');
+                return;
+            }
+            bmPushUndo();
+            markMoved(key);
+            const parentKey = bookmarkMapper.flat.find(f => f.key === key)?.parentKey || null;
+            let cat = null;
+            if (parentKey) {
+                const pNode = bookmarkMapper.map[parentKey];
+                if (pNode) cat = bookmarkMapper.right.find(c => c.name === pNode.name);
+            }
+            if (!cat) cat = bookmarkMapper.right.find(c => c.name === '未分类');
+            if (!cat) {
+                cat = { name: '未分类', subs: [], expanded: true };
+                bookmarkMapper.right.push(cat);
+            }
+            // 子分类记录来源 key，右侧删除时才能恢复左侧显示
+            cat.subs.push({ name: node.name, expanded: true, sourceKey: key, sites: (node.children || []).filter(c => c.type === 'bookmark').map(s => ({ name: s.name, url: s.url })) });
+        };
+        // 逐级拆分：先计算将拆分的两层并弹出确认窗，确认后才执行
+        const bookmarkSplitLevels = (key) => {
+            // 右键菜单 @click 会把事件对象误传进来，只有字符串 key 才直接使用
+            if (typeof key !== 'string') key = bookmarkMapper.ctx.key;
+            const node = bookmarkMapper.map[key];
+            bookmarkMapper.ctx.visible = false;
+            if (!node || node.type !== 'folder') return;
+            if (bookmarkMapper.moved.has(key)) {
+                showToast('该书签已拆分完毕', 'info');
+                return;
+            }
+            // 已移动到右侧的文件夹不参与后续拆分，避免重复拆同一组
+            const isMovedNode = (n) => {
+                for (const k in bookmarkMapper.map) {
+                    if (bookmarkMapper.map[k] === n && bookmarkMapper.moved.has(k)) return true;
+                }
+                return false;
+            };
+            const path = [node];
+            let cur = node;
+            while (cur.type === 'folder') {
+                const next = (cur.children || []).find(c => c.type === 'folder' && !isMovedNode(c));
+                if (!next) break;
+                path.push(next);
+                cur = next;
+            }
+            // 每次直接拆「当前最深的两层」：已移动的层级会让 path 自动缩短，
+            // 无需计数（4 级：先拆 3、4 级，再拆 1、2 级）
+            const D = path.length;
+            if (D < 2) {
+                showToast('该书签已拆分完毕', 'info');
+                return;
+            }
+            const mainNode = path[D - 2];
+            const subNode = path[D - 1];
+            // 主分类下所有未拆走的直接子文件夹都作为子分类（不能只取路径上的第一个）
+            const subNodes = (mainNode.children || []).filter(c => c.type === 'folder' && !isMovedNode(c));
+            let siteCount = 0;
+            for (const s of subNodes) {
+                siteCount += (s.children || []).filter(c => c.type === 'bookmark').length;
+            }
+            const directSites = (mainNode.children || []).filter(c => c.type === 'bookmark').map(s => ({ name: s.name, url: s.url }));
+            // 子分类内部嵌套的更深文件夹（一级菜单）：逐级拆分到这一层时会被丢弃，需询问
+            const deepInfo = [];
+            for (const s of subNodes) {
+                const deepFolders = (s.children || []).filter(c => c.type === 'folder');
+                if (deepFolders.length) {
+                    deepInfo.push({
+                        subName: s.name,
+                        subKey: findKeyByNode(s),
+                        folderKeys: deepFolders.map(f => findKeyByNode(f))
+                    });
+                }
+            }
+            // 可独立成一级分类的子分类：有子文件夹，且子文件夹内没有更深嵌套（整体提升为主分类，不丢内容）
+            const primaryableSubs = subNodes.filter(s => {
+                const subs = (s.children || []).filter(x => x.type === 'folder');
+                return subs.length > 0 && subs.every(x => !(x.children || []).some(y => y.type === 'folder'));
+            }).map(s => ({ subName: s.name, subKey: findKeyByNode(s) }));
+            bmChoiceMode.value = 'discard';
+            bmDeepMode.value = 'discard';
+            // 弹出确认窗：预览将拆分的两层，确认后才执行
+            bookmarkMapper.splitConfirm = {
+                visible: true,
+                key,
+                mainKey: findKeyByNode(mainNode),
+                subKey: findKeyByNode(subNode),
+                mainName: mainNode.name,
+                subName: subNode.name,
+                subsCount: subNodes.length,
+                siteCount,
+                sites: directSites,
+                subs: subNodes.map(s => s.name),
+                selectedSub: '',
+                deepInfo,
+                primaryableSubs
+            };
+        };
+        // 确认逐级拆分：把主分类/子分类加入右侧并隐藏左侧
+        const bookmarkSplitApply = () => {
+            const sc = bookmarkMapper.splitConfirm;
+            if (!sc || !sc.visible) return;
+            // 主分类下有直接网站且选择并入时，必须指定目标子分类
+            if (bmChoiceMode.value === 'merge' && sc.sites.length > 0 && !sc.selectedSub) {
+                showToast('请选择要并入的子分类', 'warning');
+                return;
+            }
+            sc.visible = false;
+            const mainNode = bookmarkMapper.map[sc.mainKey];
+            if (!mainNode) return;
+            bmPushUndo();
+            markMoved(sc.mainKey);
+            const cat = { name: mainNode.name, subs: [], sourceKey: sc.mainKey, expanded: true };
+            // 主分类的所有直接子文件夹（未拆走的）都作为子分类，各自收集直接网站
+            for (const child of (mainNode.children || [])) {
+                if (child.type !== 'folder') continue;
+                const childKey = findKeyByNode(child);
+                if (childKey && bookmarkMapper.moved.has(childKey)) continue;
+                const sites = (child.children || []).filter(c => c.type === 'bookmark').map(s => ({ name: s.name, url: s.url }));
+                cat.subs.push({ name: child.name, expanded: true, sites });
+            }
+            // 主分类下的直接网站：舍弃或并入指定子分类
+            if (sc.sites.length > 0 && bmChoiceMode.value === 'merge') {
+                let sub = cat.subs.find(s => s.name === sc.selectedSub);
+                if (!sub) {
+                    sub = { name: sc.selectedSub, expanded: true, sites: [] };
+                    cat.subs.push(sub);
+                }
+                sc.sites.forEach(s => sub.sites.push({ name: s.name, url: s.url }));
+            }
+            // 子分类内的更深层级（一级菜单）：丢弃或并入对应子分类
+            if (sc.deepInfo.length > 0) {
+                if (bmDeepMode.value === 'merge') {
+                    const collectDeepSites = (nodes, out) => {
+                        for (const n of nodes) {
+                            if (n.type === 'bookmark') out.push({ name: n.name, url: n.url });
+                            else if (n.type === 'folder') collectDeepSites(n.children || [], out);
+                        }
+                    };
+                    for (const d of sc.deepInfo) {
+                        const sub = cat.subs.find(s => s.name === d.subName);
+                        if (!sub) continue;
+                        for (const fk of d.folderKeys) {
+                            const fNode = bookmarkMapper.map[fk];
+                            if (fNode) collectDeepSites(fNode.children || [], sub.sites);
+                        }
+                    }
+                } else if (bmDeepMode.value === 'primary') {
+                    // 独立成为一个一级分类：把可一级分类的子分类整体提升为主分类（保留其子文件夹，不留空壳）
+                    for (const pb of (sc.primaryableSubs || [])) {
+                        const bNode = bookmarkMapper.map[pb.subKey];
+                        if (!bNode || bNode.type !== 'folder') continue;
+                        // 从当前主分类的子分类中移除，避免出现空壳
+                        const idx = cat.subs.findIndex(s => s.name === pb.subName);
+                        if (idx >= 0) cat.subs.splice(idx, 1);
+                        const bCat = { name: bNode.name, subs: [], sourceKey: pb.subKey, expanded: true };
+                        for (const fc of (bNode.children || [])) {
+                            if (fc.type !== 'folder') continue;
+                            const sites = (fc.children || []).filter(x => x.type === 'bookmark').map(s => ({ name: s.name, url: s.url }));
+                            bCat.subs.push({ name: fc.name, expanded: true, sites });
+                        }
+                        // 直接网站并入同名子分类，避免丢失
+                        const bDirect = (bNode.children || []).filter(x => x.type === 'bookmark');
+                        if (bDirect.length) {
+                            let sub = bCat.subs.find(s => s.name === bNode.name);
+                            if (!sub) {
+                                sub = { name: bNode.name, expanded: true, sites: [] };
+                                bCat.subs.push(sub);
+                            }
+                            bDirect.forEach(s => sub.sites.push({ name: s.name, url: s.url }));
+                        }
+                        bookmarkMapper.right.push(bCat);
+                    }
+                }
+            }
+            bookmarkMapper.right.push(cat);
+        };
+        // 从「已移动」集合恢复左侧显示，并展开祖先链让其在原位置立即可见
+        const restoreBookmarkLeft = (key) => {
+            if (!key) return;
+            bookmarkMapper.moved.delete(key);
+            const byKey = {};
+            bookmarkMapper.flat.forEach(f => { byKey[f.key] = f; });
+            let cur = byKey[key];
+            if (cur) {
+                const chain = [];
+                let p = cur.parentKey;
+                while (p && byKey[p]) {
+                    chain.push(byKey[p]);
+                    p = byKey[p].parentKey;
+                }
+                chain.forEach(f => { if (f.folder) f.expanded = true; });
+            }
+        };
+        // 右侧移除一个主分类（连带其子分类恢复左侧显示）
+        const removeBookmarkRight = (ci) => {
+            bmPushUndo();
+            const cat = bookmarkMapper.right[ci];
+            if (cat) {
+                if (cat.sourceKey) restoreBookmarkLeft(cat.sourceKey);
+                (cat.subs || []).forEach(s => { if (s.sourceKey) restoreBookmarkLeft(s.sourceKey); });
+            }
+            bookmarkMapper.right.splice(ci, 1);
+        };
+        // 右侧移除一个子分类（恢复左侧显示）
+        const removeBookmarkSub = (cat, si) => {
+            bmPushUndo();
+            const sub = cat.subs[si];
+            if (sub && sub.sourceKey) restoreBookmarkLeft(sub.sourceKey);
+            cat.subs.splice(si, 1);
+        };
+        // 右侧主分类点击展开/收起子分类
+        const toggleRightCat = (cat) => { cat.expanded = !cat.expanded; };
+        // 右侧子分类点击展开/收起网站列表
+        const toggleRightSub = (sub) => { sub.expanded = !sub.expanded; };
+        // 右侧网站行删除
+        const removeBookmarkSite = (sub, xi) => {
+            bmPushUndo();
+            sub.sites.splice(xi, 1);
+        };
+        // === 撤销 / 重做（Ctrl+Z / Ctrl+Y）===
+        const bmUndoStack = ref([]);
+        const bmRedoStack = ref([]);
+        const bmSnapshot = () => ({
+            right: JSON.parse(JSON.stringify(bookmarkMapper.right)),
+            moved: Array.from(bookmarkMapper.moved),
+            splitDone: { ...bookmarkMapper.splitDone }
+        });
+        const bmRestore = (s) => {
+            bookmarkMapper.right = s.right;
+            bookmarkMapper.moved = new Set(s.moved);
+            bookmarkMapper.splitDone = s.splitDone || {};
+        };
+        const bmPushUndo = () => {
+            bmUndoStack.value.push(bmSnapshot());
+            if (bmUndoStack.value.length > 100) bmUndoStack.value.shift();
+            bmRedoStack.value = [];
+        };
+        const bmUndo = () => {
+            if (!bookmarkMapper.open) return;
+            if (!bmUndoStack.value.length) { showToast('没有可撤销的操作', 'info'); return; }
+            bmRedoStack.value.push(bmSnapshot());
+            bmRestore(bmUndoStack.value.pop());
+        };
+        const bmRedo = () => {
+            if (!bookmarkMapper.open) return;
+            if (!bmRedoStack.value.length) { showToast('没有可重做的操作', 'info'); return; }
+            bmUndoStack.value.push(bmSnapshot());
+            bmRestore(bmRedoStack.value.pop());
+        };
+        const bmKeydown = (e) => {
+            if (!bookmarkMapper.open) return;
+            // 输入框内不拦截（保留原生撤销）
+            const t = e.target;
+            if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+            const ctrl = e.ctrlKey || e.metaKey;
+            if (ctrl && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+                e.preventDefault();
+                bmUndo();
+            } else if (ctrl && (e.key === 'y' || e.key === 'Y')) {
+                e.preventDefault();
+                bmRedo();
+            } else if (ctrl && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+                e.preventDefault();
+                bmRedo();
+            }
+        };
+        // 生成 Excel：右侧两级结构 → 分类/子分类/名称/网址
+        const generateBookmarkMapperExcel = () => {
+            try {
+                if (!window.XLSX) throw new Error('Excel 解析库未加载（lib/xlsx.full.min.js）');
+                const rows = [['分类', '子分类', '名称', '网址', '描述']];
+                for (const cat of bookmarkMapper.right) {
+                    for (const sub of cat.subs) {
+                        for (const site of sub.sites) {
+                            rows.push([cat.name, sub.name, site.name, site.url, '']);
+                        }
+                        if (!sub.sites.length) rows.push([cat.name, sub.name, '', '', '']);
+                    }
+                    if (!cat.subs.length) rows.push([cat.name, '', '', '', '']);
+                }
+                if (rows.length === 1) throw new Error('右侧还没有可导出的内容，请先在左侧右键拆分书签');
+                const ws = window.XLSX.utils.aoa_to_sheet(rows);
+                const wb = window.XLSX.utils.book_new();
+                window.XLSX.utils.book_append_sheet(wb, ws, '网址清单');
+                const out = window.XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                const blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                Utils.download('书签映射_' + Date.now() + '.xlsx', blob, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+                showToast('书签 Excel 已生成，可用「.excel导入」导入为版本', 'success');
+            } catch (e) {
+                showToast('生成失败：' + (e.message || e), 'error');
+            }
+        };
+        const importBookmarksGenerator = () => {
+            const inp = document.createElement('input');
+            inp.type = 'file';
+            inp.accept = '.html,.htm';
+            inp.onchange = async () => {
+                const file = inp.files && inp.files[0];
+                if (!file) return;
+                try {
+                    showToast('正在解析书签...', 'info', 6000);
+                    const text = await file.text();
+                    const doc = new DOMParser().parseFromString(text, 'text/html');
+                    const rootDl = doc.querySelector('dl');
+                    if (!rootDl) throw new Error('无法识别书签文件（需要浏览器导出的 HTML 书签）');
+                    let tree = parseBookmarkTree(rootDl);
+                    // 顶层只有一个常见容器文件夹（如“书签栏”）时，展开它作为顶层
+                    if (tree.length === 1 && tree[0].type === 'folder' && BOOKMARK_CONTAINER_NAMES.indexOf(tree[0].name) >= 0) {
+                        tree = tree[0].children;
+                    }
+                    const stats = countBookmarks(tree);
+                    if (stats.bookmarks === 0) throw new Error('书签文件中没有找到网址');
+                    openBookmarkMapper(tree);
+                } catch (e) {
+                    showToast('书签解析失败：' + (e.message || e), 'error');
+                }
+            };
+            inp.click();
+        };
+
         const confirmImport = async () => {
             const d = shareDraft.value;
             const sel = SHARE_MODULES.filter(m => d.modules[m.key]).map(m => m.key);
@@ -8527,6 +9485,25 @@ sidebarTop: {
             list.forEach(v => {
                 try { versionDataHashCache[v.id] = hashData(v.data); } catch (_) { versionDataHashCache[v.id] = ''; }
             });
+        };
+
+        // 恢复“当前编辑版本”选中：优先持久化的 currentVersionId（须存在于版本列表，
+        // 防止指向已删除/损坏的版本）；否则自动选最新版本；没有版本时置空。
+        const restoreCurrentVersion = async () => {
+            let vid = data.currentVersionId || currentEditingVersionId.value;
+            if (vid && versions.value.some(v => v.id === vid)) {
+                currentEditingVersionId.value = vid;
+                return;
+            }
+            if (versions.value && versions.value.length) {
+                const sorted = [...versions.value].sort((a, b) => b.timestamp - a.timestamp);
+                currentEditingVersionId.value = sorted[0].id;
+                data.currentVersionId = sorted[0].id;
+                try { await persistData({ silent: true, mark: false }); } catch (_) {}
+            } else {
+                currentEditingVersionId.value = null;
+                data.currentVersionId = null;
+            }
         };
 
         const openVersionLocation = async (version) => {
@@ -8760,6 +9737,8 @@ sidebarTop: {
             modal.profiles = false;
             // 重新加载版本列表（应用该站点自定义顺序）
             await refreshVersions();
+            // 恢复当前编辑版本选中（持久化的 currentVersionId，否则自动选最新版本）
+            await restoreCurrentVersion();
         };
 
         const saveCurrentToProfile = async () => {
@@ -8770,6 +9749,22 @@ sidebarTop: {
             await Storage.saveProfile(profile);
             if (p) currentSiteMeta.value = { id: p.id, name: p.name, createdAt: p.createdAt };
             await loadProfiles();
+        };
+
+        // 删除最后一个站点后新建的默认站点：重置为干净空白（无分类、无标签内容）
+        const resetDataToEmpty = () => {
+            data.categories = [];
+            data.friendLinks = [];
+            if (data.site) {
+                data.site.title = '';
+                data.site.description = '';
+                data.site.keywords = '';
+                data.site.favicon = '';
+                data.site.logoLight = '';
+                data.site.logoDark = '';
+                data.site.logoCollapsedLight = '';
+                data.site.logoCollapsedDark = '';
+            }
         };
 
         const deleteProfile = async (id) => {
@@ -8783,8 +9778,11 @@ sidebarTop: {
                     const remaining = profiles.value.filter(x => x.id !== id);
                     let nextId = remaining.length > 0 ? remaining[0].id : '';
                     if (!nextId) {
-                        nextId = await Storage.createProfile('默认站点', JSON.parse(JSON.stringify(data)));
+                        nextId = await Storage.createProfile('默认站点', {});
                         await loadProfiles();
+                        // 清空编辑器内存中的残留内容，并保存为空白默认站点
+                        resetDataToEmpty();
+                        await persistData({ mark: false, silent: true });
                     }
                     currentProfileId.value = nextId;
                     Storage.setCurrentProfileId(nextId);
@@ -8792,6 +9790,9 @@ sidebarTop: {
                     const nextProfile = await Storage.getProfile(nextId);
                     currentSiteMeta.value = nextProfile ? { id: nextProfile.id, name: nextProfile.name, createdAt: nextProfile.createdAt } : null;
                     Object.assign(data, JSON.parse(JSON.stringify((nextProfile && nextProfile.data) || {})));
+                    // 切换站点后刷新版本列表并恢复当前版本选中
+                    await refreshVersions();
+                    await restoreCurrentVersion();
                 }
                 showToast('站点已删除', 'success');
             };
@@ -13830,7 +14831,7 @@ sidebarTop: {
                 };
 
                 const result = isGitHub
-                    ? await GitHubSync.deployFiles(files, account, onProgress, { onlyFiles: toUpload, deleteFiles: toDelete, onDetail, forceFull })
+                    ? await GitHubSync.deployFiles(files, account, onProgress, { onlyFiles: toUpload, deleteFiles: toDelete, onDetail, forceFull, shardTree: githubShardTree.value })
                     : isVercel
                     ? await VercelSync.deployFiles(files, account, onProgress, { onDetail })
                     : isNetlify
@@ -13891,6 +14892,11 @@ sidebarTop: {
                 if (errorStep >= 0) {
                     syncSteps.value[errorStep].status = 'error';
                     syncSteps.value[errorStep].detail = e.message;
+                }
+                // GitHub 建树超时/过大：提供“分片发布”一键方案，不卡死在这里
+                if (e && e.code === 'TREE_TOO_LARGE') {
+                    treeTooLargeContext.value = { forceFull, sourceData, sourceLabel, sourceVersionId, quick, quickState };
+                    modal.treeTooLarge = true;
                 }
                 // 用 syncResult 标记失败状态（模板里通过 success: false 区分）
                 const errMsg = (e && e.message) ? e.message : String(e);
@@ -13991,6 +14997,22 @@ sidebarTop: {
                 });
             } catch (e) {
                 showToast('检查发布状态失败：' + (e.message || e), 'error');
+            }
+        };
+
+        // === GitHub 建树超时/过大：一键“分片发布”（分批构建 tree，绕过 GitHub 请求体超时）===
+        const confirmShardPublish = async () => {
+            const ctx = treeTooLargeContext.value;
+            modal.treeTooLarge = false;
+            treeTooLargeContext.value = null;
+            if (!ctx) return;
+            githubShardTree.value = true;
+            try {
+                await syncToCloudflare(ctx.forceFull, ctx.sourceData, ctx.sourceLabel, ctx.sourceVersionId, ctx.quick, ctx.quickState);
+            } catch (e2) {
+                showToast('分片发布仍失败：' + (e2.message || e2), 'error', 6000);
+            } finally {
+                githubShardTree.value = false;
             }
         };
 
@@ -14522,7 +15544,15 @@ sidebarTop: {
             publishMainLabel, onPublishMainClick, openPublishSettings, closePublishSettings, resetPublishSettings,
             quickPublish,
             publishConfirmText, confirmPublish, cancelPublish, confirmPublishSave, cancelPublishSave,
+            confirmShardPublish,
             rollbackVersion, deleteVersion, exportVersion, importVersionFile, previewVersion, openVersionLocation,
+            importExcelVersion, exportVersionExcel,
+            importBookmarksGenerator, openBookmarkMapper, closeBookmarkMapper, bookmarkMapper, bmChoiceMode, bmDeepMode,
+            toggleBookmarkNode, clickBookmarkNode, visibleBookmarkFlat, openBookmarkCtx, closeBookmarkCtx, bookmarkCtxShowSplit,
+            bookmarkCtxShowPrimary, bookmarkCtxShowSecondary, isBookmarkSplitable, isBookmarkPrimaryReady, isBookmarkSecondaryReady,
+            bookmarkLeftStats, bookmarkRightStats,
+            bookmarkToPrimary, bookmarkToSecondary, bookmarkSplitLevels, bookmarkSplitApply,
+            bookmarkChoiceDiscard, bookmarkChoiceMerge, removeBookmarkRight, removeBookmarkSub, toggleRightCat, toggleRightSub, removeBookmarkSite, generateBookmarkMapperExcel,
             versionUploadRecords,
             shareModulesList: SHARE_MODULES, shareDraft, shareVersion, confirmShare, confirmImport,
             exportAllSitesPackage, importAllSitesPackage,

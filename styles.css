@@ -544,8 +544,91 @@ input:focus, textarea:focus, select:focus {
   border-color: var(--border);
 }
 .btn-danger:hover { background: var(--danger-light); border-color: var(--danger); color: var(--danger); }
+.btn-blue {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #fff;
+}
+.btn-blue:hover { background: #2563eb; border-color: #2563eb; color: #fff; }
+.btn-violet {
+  background: #8b5cf6;
+  border-color: #8b5cf6;
+  color: #fff;
+}
+.btn-violet:hover { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+.btn-excel {
+  background: #217346;
+  border-color: #217346;
+  color: #fff;
+}
+.btn-excel:hover { background: #1a5c38; border-color: #1a5c38; color: #fff; }
+.btn-orange {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  color: #fff;
+}
+.btn-orange:hover { background: #d97706; border-color: #d97706; color: #fff; }
+.btn-slate {
+  background: #64748b;
+  border-color: #64748b;
+  color: #fff;
+}
+.btn-slate:hover { background: #475569; border-color: #475569; color: #fff; }
+.btn-sky {
+  background: #0ea5e9;
+  border-color: #0ea5e9;
+  color: #fff;
+}
+.btn-sky:hover { background: #0284c7; border-color: #0284c7; color: #fff; }
 .btn-sm { padding: 4px 10px; font-size: 12px; }
 .btn-xs { padding: 2px 6px; font-size: 11px; line-height: 1.4; }
+
+/* ==================== 书签映射器 ==================== */
+.bookmark-tree-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: default;
+  user-select: none;
+  min-width: 0;
+}
+.bookmark-tree-item:hover { background: rgba(59, 130, 246, 0.08); }
+.bookmark-tree-item span { min-width: 0; }
+.bookmark-right-cat {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px;
+  margin-bottom: 8px;
+}
+.bookmark-ctx-menu {
+  position: fixed;
+  z-index: 2000;
+  min-width: 150px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+.bookmark-ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+.bookmark-ctx-item:hover { background: rgba(59, 130, 246, 0.1); }
 
 /* ==================== 下拉按钮组 ==================== */
 .btn-group { position: relative; display: inline-flex; gap: 4px; }
@@ -1818,7 +1901,7 @@ input:focus, textarea:focus, select:focus {
 }
 
 /* ==================== 版本历史 ==================== */
-.modal-version-history { width: 760px; }
+.modal-version-history { width: 860px; max-width: 96vw; }
 .version-list {
   max-height: 400px;
   overflow-y: auto;

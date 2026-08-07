@@ -7,6 +7,9 @@ __pycache__/
 # 运行日志
 launcher_startup.log
 
+# 浏览器自动化临时目录（Playwright 等）
+.playwright-cli/
+
 # 部署临时压缩包
 deploy.zip
 deploy_*.zip
