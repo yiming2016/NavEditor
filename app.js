@@ -1698,7 +1698,7 @@ body.modal-open{overflow:auto!important;padding-right:0!important}
             const fbIcon = (site.fallbackIcon || 'fas fa-link').replace(/"/g, '&quot;');
             const onerror = "this.style.display='none';var n=this.nextElementSibling;if(n){n.style.display='inline-flex';}";
             logoHtml = `<span style="display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%">
-                                <img class="lazy" src="${safeLogo}" data-src="${safeLogo}" onerror="${onerror}"
+                                <img class="lazy" src="" data-src="${safeLogo}" onerror="${onerror}"
                                      alt="${this.escapeAttr(site.name)}" style="width:100%;height:100%;object-fit:contain">
                                 <i class="${fbIcon}" style="display:none;font-size:20px;color:#8a94a6" aria-hidden="true"></i>
                             </span>`;
@@ -1716,11 +1716,11 @@ body.modal-open{overflow:auto!important;padding-right:0!important}
                 logoHtml = logo; // 内联 SVG（原始文本）
             } else {
                 const safeLogo = this.escapeAttr(logo);
-                logoHtml = `<img class="lazy" src="${safeLogo}" data-src="${safeLogo}" onerror="this.style.display='none'" alt="${this.escapeAttr(site.name)}">`;
+                logoHtml = `<img class="lazy" src="" data-src="${safeLogo}" onerror="this.style.display='none'" alt="${this.escapeAttr(site.name)}">`;
             }
         } else if (bgType === 'url') {
             const safeLogo = this.escapeAttr(site.logo || '');
-            logoHtml = `<img class="lazy" src="${safeLogo}" data-src="${safeLogo}" onerror="this.style.display='none'" alt="${this.escapeAttr(site.name)}">`;
+            logoHtml = `<img class="lazy" src="" data-src="${safeLogo}" onerror="this.style.display='none'" alt="${this.escapeAttr(site.name)}">`;
         }
 
         // 网站卡片闪烁效果（背景色填充整个白色卡片区域）
@@ -2404,6 +2404,13 @@ var theme = {"ajaxurl":"","addico":"https:\/\/nav.baidu.cn\/wp-content\/themes\/
 <script type='text/javascript' src='./assets/js/bootstrap.min-4.3.1.js' id='bootstrap-js'></script>
 <script type='text/javascript' src='./assets/js/theia-sticky-sidebar-1.5.0.js' id='sidebar-js'></script>
 <script type='text/javascript' src='./assets/js/lazyload.min-12.4.0.js' id='lazyload-js'></script>
+<script>
+(function () {
+    if (window.LazyLoad) {
+        try { new LazyLoad({ elements_selector: '.lazy' }); } catch (e) {}
+    }
+})();
+</script>
 <script type='text/javascript' src='./assets/js/fancybox.min-3.5.7.js' id='lightbox-js-js'></script>
 
 <script type='text/javascript' src='./assets/js/app-anim.js' id='appanim-js'></script>
