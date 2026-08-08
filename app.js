@@ -10310,7 +10310,7 @@ sidebarTop: {
             { name: '靛蓝', type: 'image', url: 'assets/images/wallpapers/壁纸（渐变）/靛蓝.svg', group: 'wallpaper' },
             { name: '薄暮灰粉', type: 'image', url: 'assets/images/wallpapers/壁纸（渐变）/薄暮灰粉.svg', group: 'wallpaper' },
             { name: '日落橙粉', type: "image", url: 'assets/images/wallpapers/壁纸（渐变）/日落橙粉.png', group: 'wallpaper' },
-            { name: '导航蓝紫渐变', type: "image", url: 'assets/images/wallpapers/壁纸（渐变）/导航蓝紫渐变.png', group: 'wallpaper' },
+            { name: '导航蓝紫渐变', type: "image", url: 'assets/images/wallpapers/壁纸（渐变）/导航蓝紫渐变.webp', group: 'wallpaper' },
             { name: '导航青绿渐变', type: "image", url: 'assets/images/wallpapers/壁纸（渐变）/导航青绿渐变.png', group: 'wallpaper' },
             { name: '点阵灰', type: 'image', url: 'assets/images/wallpapers/图案纹理/点阵灰.svg', group: 'pattern' },
             { name: '圆点蓝', type: 'image', url: 'assets/images/wallpapers/图案纹理/圆点蓝.svg', group: 'pattern' },
@@ -10458,7 +10458,7 @@ sidebarTop: {
             // 极简线条（干净/线条/几何）
             { name: '金线几何', type: 'image', url: 'assets/images/wallpapers/极简线条/金线几何.png', group: 'minimal' },
             { name: '灰白曲线', type: 'image', url: 'assets/images/wallpapers/极简线条/灰白曲线.png', group: 'minimal' },
-            { name: '悬浮球体', type: 'image', url: 'assets/images/wallpapers/极简线条/悬浮球体.png', group: 'minimal' },
+            { name: '悬浮球体', type: 'image', url: 'assets/images/wallpapers/极简线条/悬浮球体.webp', group: 'minimal' },
             { name: '一线山影', type: 'image', url: 'assets/images/wallpapers/极简线条/一线山影.png', group: 'minimal' },
             // 星空宇宙（银河/星云/宇航员）
             { name: '银河山湖', type: 'image', url: 'assets/images/wallpapers/星空宇宙/银河山湖.png', group: 'starry' },

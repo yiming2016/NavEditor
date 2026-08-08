@@ -13326,7 +13326,7 @@
   },
   "background": {
     "type": "image",
-    "url": "assets/images/wallpapers/壁纸（渐变）/导航蓝紫渐变.png",
+    "url": "assets/images/wallpapers/壁纸（渐变）/导航蓝紫渐变.webp",
     "mode": "wallpaper"
   },
   "bottomBackground": {
@@ -13336,7 +13336,7 @@
   },
   "footerBackground": {
     "type": "image",
-    "url": "assets/images/wallpapers/极简线条/悬浮球体.png",
+    "url": "assets/images/wallpapers/极简线条/悬浮球体.webp",
     "mode": "minimal"
   },
   "customWallpapers": [],
