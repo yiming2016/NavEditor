@@ -2265,7 +2265,7 @@ ${(function() {
                                     }
                                 }
                             </script>
-                            <script src="https://widget.qweather.net/simple/static/js/he-simple-common.js?v=2.0"></script>
+                            <script src="https://widget.qweather.net/simple/static/js/he-simple-common.js?v=2.0" async></script>
                         </div>
 
                     </div>
@@ -7913,7 +7913,25 @@ sidebarTop: {
         const prepareVersionDeployFiles = async (sourceData) => {
             // 允许传入指定数据源（如默认模板数据），否则使用当前 data
             const htmlFiles = await prepareDeploymentFiles({ index: true, about: true, commit: true, customCss: true, notFound: true }, sourceData);
-            const files = htmlFiles.map(f => ({ path: f.name, content: f.content }));
+            // 部署 HTML 必须可移植：去掉写死的本地服务 base（如 http://127.0.0.1:9527/），
+            // 子目录页面改用相对层级 base，并把 /assets/ 绝对引用改为 ./assets/，否则发布后无法独立运行。
+            const portableHtml = (name, html) => {
+                const depth = String(name).split('/').length - 1;
+                if (depth <= 0) {
+                    html = html.replace(/<base\s+href=["']https?:\/\/[^"']*["'][^>]*>/gi, '');
+                } else {
+                    const rel = '../'.repeat(depth);
+                    html = html.replace(/<base\s+href=["']https?:\/\/[^"']*["'][^>]*>/gi, '<base href="' + rel + '">');
+                    if (!/<base\b/i.test(html)) html = html.replace(/<head[^>]*>/i, m => m + '\n    <base href="' + rel + '">');
+                }
+                html = html.replace(/(href|src)=["']\/(assets\/)/gi, '$1="./$2"');
+                html = html.replace(/url\(\s*["']?\/(assets\/)/gi, 'url(./$2');
+                return html;
+            };
+            const files = htmlFiles.map(f => ({
+                path: f.name,
+                content: /\.html?$/i.test(f.name) ? portableHtml(f.name, f.content) : f.content
+            }));
 
             // 从指定数据源中找出所有引用的 assets/ 路径
             const dataStr = JSON.stringify(sourceData || data);
