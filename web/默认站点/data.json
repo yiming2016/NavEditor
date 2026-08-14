@@ -125,8 +125,8 @@
     {
       "id": "57914cf1b98def99",
       "name": "法律、标准、商标、专利、数据",
-      "icon": "fas fa-balance-scale",
-      "iconColor": "#2973bc",
+      "icon": "assets/images/sidebar-icons/scale-balance.svg",
+      "iconColor": "#4f46e5",
       "continueView": false,
       "children": [
         {
@@ -1469,8 +1469,8 @@
     {
       "id": "5fcd7103e7d26a7e",
       "name": "经济资讯",
-      "icon": "fas fa-chart-line",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/chart-line.svg",
+      "iconColor": "#16a34a",
       "continueView": false,
       "children": [
         {
@@ -1784,8 +1784,8 @@
     {
       "id": "727a99a4b77c86e8",
       "name": "招投标",
-      "icon": "fas fa-gavel",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/gavel.svg",
+      "iconColor": "#dc2626",
       "continueView": false,
       "children": [
         {
@@ -2124,8 +2124,8 @@
     {
       "id": "eb57106f0b995ade",
       "name": "政府网",
-      "icon": "fas fa-landmark",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/bank.svg",
+      "iconColor": "#2563eb",
       "continueView": false,
       "children": [
         {
@@ -2445,8 +2445,8 @@
     {
       "id": "9d35c3f6b7dfef0e",
       "name": "深圳",
-      "icon": "fas fa-city",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/city-variant.svg",
+      "iconColor": "#0ea5e9",
       "continueView": false,
       "children": [
         {
@@ -3072,8 +3072,8 @@
     {
       "id": "280ef0746a901e22",
       "name": "税务，社保",
-      "icon": "fas fa-file-invoice-dollar",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/receipt-text.svg",
+      "iconColor": "#0d9488",
       "continueView": false,
       "children": [
         {
@@ -3187,8 +3187,8 @@
     {
       "id": "30523490f01ff647",
       "name": "外包",
-      "icon": "fas fa-handshake",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/handshake.svg",
+      "iconColor": "#9333ea",
       "continueView": false,
       "children": [
         {
@@ -3973,8 +3973,8 @@
     {
       "id": "6e2b569a6ab3bba5",
       "name": "营销",
-      "icon": "fas fa-bullhorn",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/bullhorn.svg",
+      "iconColor": "#ea580c",
       "continueView": false,
       "children": [
         {
@@ -4666,8 +4666,8 @@
     {
       "id": "46c80c257b4fc636",
       "name": "工业品采购",
-      "icon": "fas fa-gavel",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/factory.svg",
+      "iconColor": "#475569",
       "continueView": false,
       "children": [
         {
@@ -5397,8 +5397,8 @@
     {
       "id": "183e9239bd40ade3",
       "name": "金属",
-      "icon": "fas fa-cubes",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/cube-outline.svg",
+      "iconColor": "#71717a",
       "continueView": false,
       "children": [
         {
@@ -5432,8 +5432,8 @@
     {
       "id": "00e8d0cd29084037",
       "name": "大宗商品",
-      "icon": "fas fa-boxes",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/package-variant-closed.svg",
+      "iconColor": "#b45309",
       "continueView": false,
       "children": [
         {
@@ -5547,8 +5547,8 @@
     {
       "id": "dd07872ce7c32e31",
       "name": "承兑汇票",
-      "icon": "fas fa-file-invoice",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/receipt.svg",
+      "iconColor": "#0e7490",
       "continueView": false,
       "children": [
         {
@@ -5622,8 +5622,8 @@
     {
       "id": "3c5773be73dba7e5",
       "name": "跨境",
-      "icon": "fas fa-globe-asia",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/earth.svg",
+      "iconColor": "#1d4ed8",
       "continueView": false,
       "children": [
         {
@@ -5975,8 +5975,8 @@
     {
       "id": "f8fcb73ae64eaf79",
       "name": "匿名邮箱",
-      "icon": "fas fa-user-secret",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/incognito.svg",
+      "iconColor": "#334155",
       "continueView": false,
       "children": [
         {
@@ -6050,8 +6050,8 @@
     {
       "id": "abff320ba909b8d6",
       "name": "融钱",
-      "icon": "fas fa-money-bill-wave",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/cash-multiple.svg",
+      "iconColor": "#15803d",
       "continueView": false,
       "children": [
         {
@@ -6237,8 +6237,8 @@
     {
       "id": "00ab622b788b5a2f",
       "name": "算力",
-      "icon": "fas fa-server",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/server.svg",
+      "iconColor": "#7c3aed",
       "continueView": false,
       "children": [
         {
@@ -6398,8 +6398,8 @@
     {
       "id": "b532a73cad8a55b2",
       "name": "地图",
-      "icon": "fas fa-map-marked-alt",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/map-marker-radius.svg",
+      "iconColor": "#059669",
       "continueView": false,
       "children": [
         {
@@ -6493,8 +6493,8 @@
     {
       "id": "0001c4cca580872a",
       "name": "飞机",
-      "icon": "fas fa-plane",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/airplane.svg",
+      "iconColor": "#0284c7",
       "continueView": false,
       "children": [
         {
@@ -6654,8 +6654,8 @@
     {
       "id": "1d61818656413a10",
       "name": "香港学校",
-      "icon": "fas fa-graduation-cap",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/school.svg",
+      "iconColor": "#c2410c",
       "continueView": false,
       "children": [
         {
@@ -6749,8 +6749,8 @@
     {
       "id": "faa72cf30548c437",
       "name": "旅行",
-      "icon": "fas fa-folder",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/bag-suitcase.svg",
+      "iconColor": "#db2777",
       "continueView": false,
       "children": [
         {
@@ -7262,8 +7262,8 @@
     {
       "id": "7266eb1f8774bb6e",
       "name": "无线电、射频",
-      "icon": "fas fa-broadcast-tower",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/radio-tower.svg",
+      "iconColor": "#d97706",
       "continueView": false,
       "children": [
         {
@@ -7417,8 +7417,8 @@
     {
       "id": "e0f35c4f9233d4ea",
       "name": "软件开发",
-      "icon": "fas fa-code",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/code-tags.svg",
+      "iconColor": "#2563eb",
       "continueView": false,
       "children": [
         {
@@ -7658,8 +7658,8 @@
     {
       "id": "d8f8c63f90038a3f",
       "name": "网站",
-      "icon": "fas fa-globe",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/web.svg",
+      "iconColor": "#0891b2",
       "continueView": false,
       "children": [
         {
@@ -9005,8 +9005,8 @@
     {
       "id": "37b86e54ae480b99",
       "name": "下载",
-      "icon": "fas fa-download",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/download.svg",
+      "iconColor": "#16a34a",
       "continueView": false,
       "children": [
         {
@@ -11846,8 +11846,8 @@
     {
       "id": "b63124cd3295c569",
       "name": "在线工具",
-      "icon": "fas fa-tools",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/tools.svg",
+      "iconColor": "#f97316",
       "continueView": false,
       "children": [
         {
@@ -12233,8 +12233,8 @@
     {
       "id": "cdb044a450562e8d",
       "name": "AI",
-      "icon": "fas fa-robot",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/robot.svg",
+      "iconColor": "#6d28d9",
       "continueView": false,
       "children": [
         {
@@ -12474,8 +12474,8 @@
     {
       "id": "299abd4d854bb088",
       "name": "社区、论坛",
-      "icon": "fas fa-comments",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/forum.svg",
+      "iconColor": "#0ea5e9",
       "continueView": false,
       "children": [
         {
@@ -13073,8 +13073,8 @@
     {
       "id": "0b24b60ff35b7ad0",
       "name": "号卡",
-      "icon": "fas fa-sim-card",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/sim.svg",
+      "iconColor": "#e11d48",
       "continueView": false,
       "children": [
         {
@@ -13108,8 +13108,8 @@
     {
       "id": "4026f1afb206b5ea",
       "name": "开源项目",
-      "icon": "fas fa-code-branch",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/source-branch.svg",
+      "iconColor": "#64748b",
       "continueView": false,
       "children": [
         {
@@ -13223,8 +13223,8 @@
     {
       "id": "03bdd096738f4ce9",
       "name": "生化",
-      "icon": "fas fa-dna",
-      "iconColor": "#b2b8be",
+      "icon": "assets/images/sidebar-icons/dna.svg",
+      "iconColor": "#059669",
       "continueView": false,
       "children": [
         {
