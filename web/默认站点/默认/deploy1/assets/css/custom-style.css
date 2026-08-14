@@ -153,6 +153,26 @@ footer.main-footer .footer-text a:hover {
     line-height: normal;
 }
 
+/* ===== 侧边栏分类彩色图标（SVG 渐变图标 + 动画）===== */
+.sidebar-item a .cat-icon-img {
+    width: 1.5em !important;
+    height: 1.5em !important;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .14);
+    transition: transform .25s ease, box-shadow .25s ease;
+}
+.sidebar-item a:hover .cat-icon-img {
+    animation: nvSidebarIcon .45s ease;
+}
+@keyframes nvSidebarIcon {
+    0%   { transform: rotate(-12deg) scale(1); }
+    50%  { transform: rotate(14deg) scale(1.2); }
+    100% { transform: rotate(0) scale(1); }
+}
+.sidebar-item.active > a .cat-icon-img,
+.sidebar-item a.active .cat-icon-img {
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, .9), 0 4px 14px rgba(0, 0, 0, .28);
+}
 
 
 
