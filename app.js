@@ -5117,7 +5117,7 @@ sidebarTop: {
                 let css = '';
                 ['left', 'right'].forEach(side => {
                     (a[side] || []).forEach((s, i) => {
-                        if (s.type === 'image' && s.blink) {
+                        if (s.type === 'image' && s.blink && s.blink.enabled) {
                             const dur = Number(s.blink.duration) || 300;
                             const iv = Number(s.blink.interval) || 150;
                             const cyc = dur + iv;
@@ -12991,12 +12991,17 @@ sidebarTop: {
             const slot = currentAdSlot.value;
             return slot ? slot.blink : null;
         });
+        // 广告位输出预览图片源：优先原图（保留动态 AVIF/GIF/WebP 自身动画），否则用已应用图
+        const adPreviewImgSrc = computed(() => {
+            const slot = currentAdSlot.value;
+            return (slot && (slot.sourceImage || slot.image)) || '';
+        });
         // 广告位输出预览闪烁类：开启"图片闪烁"时让右侧"输出预览"画布实时闪烁（AVIF 等格式同样生效）
         const adSlotOutputBlinkClass = computed(() => {
             const ctx = editForm.imageCropper;
             if (!ctx || ctx.target !== 'adSlot' || ctx.adSide == null || ctx.adIdx == null) return '';
             const slot = data.adSlots[ctx.adSide] && data.adSlots[ctx.adSide][ctx.adIdx];
-            if (!slot || !slot.blink) return '';
+            if (!slot || !slot.blink || !slot.blink.enabled) return '';
             return 'ad-blink-' + ctx.adSide + '-' + ctx.adIdx;
         });
         const applyCurrentAdBlinkPreset = (presetKey) => {
@@ -15815,7 +15820,7 @@ sidebarTop: {
             openSearchEngineIconEditor,
             initVpCropBox, onVpCropPointerDown, onVpCropPointerMove, onVpCropPointerUp, deferredInitVpCrop,
             setAspectRatio, toggleRatioLock, updateCropPreview, onAdOutputSizeChange, setCropperShape,
-        adSlotFit, setAdSlotFit, currentAdSlot, currentAdSlotBlink, adSlotOutputBlinkClass, applyCurrentAdBlinkPreset,
+        adSlotFit, setAdSlotFit, currentAdSlot, currentAdSlotBlink, adPreviewImgSrc, adSlotOutputBlinkClass, applyCurrentAdBlinkPreset,
         adSlotBackgrounds, currentAdSlotBackground, currentAdSlotBackgroundCss, currentAdSlotBgCssAlpha, setAdSlotBackground,
             adSlotBgPicker, adSlotBgSvCanvas, adSlotBgHueCanvas, adSlotBgPopover,
             drawAdSlotBgSV, drawAdSlotBgHue, syncAdSlotBgHsvFromRgb, syncAdSlotBgFromHsl, syncAdSlotBgFromHex,

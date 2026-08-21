@@ -3670,15 +3670,25 @@ const TEMPLATE = `
                                          width: icpPreviewDims.w + 'px',
                                          height: icpPreviewDims.h + 'px',
                                          borderRadius: editForm.imageCropper.shape === 'round' ? Math.round(Math.min(icpPreviewDims.w, icpPreviewDims.h) * 0.16) + 'px' : '',
-                                         background: editForm.imageCropper.target === 'adSlot' ? ((editForm.imageCropper.bgOpacity != null && editForm.imageCropper.bgOpacity < 100) ? '' : (currentAdSlotBackgroundCss || '')) : ''
+                                         background: editForm.imageCropper.target === 'adSlot' ? (currentAdSlotBgCssAlpha || '') : ''
                                      }">
-                                    <canvas v-if="editForm.imageCropper.sourceImage || (editForm.imageCropper.target === 'site' && editForm.site.logo) || editForm.imageCropper.target === 'sidebarBackground' || editForm.imageCropper.target === 'sidebarBackgroundCollapsed'"
+                                    <canvas v-if="editForm.imageCropper.target !== 'adSlot' && (editForm.imageCropper.sourceImage || (editForm.imageCropper.target === 'site' && editForm.site.logo) || editForm.imageCropper.target === 'sidebarBackground' || editForm.imageCropper.target === 'sidebarBackgroundCollapsed')"
                                             class="icp-preview-canvas"
                                             :class="adSlotOutputBlinkClass"
                                             :ref="'cropPreviewCanvas'"
                                             :width="['adSlot','wallpaper','sidebarBackground','sidebarBackgroundCollapsed'].includes(editForm.imageCropper.target) ? (editForm.imageCropper.outputSizeW || 190) : (editForm.imageCropper.outputSize || 64)"
                                             :height="['adSlot','wallpaper','sidebarBackground','sidebarBackgroundCollapsed'].includes(editForm.imageCropper.target) ? (editForm.imageCropper.outputSizeH || 49) : (editForm.imageCropper.outputSize || 64)"
                                             style="width:100%;height:100%;object-fit:contain;display:block"></canvas>
+                                    <img v-else-if="editForm.imageCropper.target === 'adSlot' && adPreviewImgSrc"
+                                         :src="adPreviewImgSrc"
+                                         class="icp-preview-img"
+                                         :class="adSlotOutputBlinkClass"
+                                         :style="{
+                                             width:'100%',
+                                             height:'100%',
+                                             objectFit: (currentAdSlot && currentAdSlot.fit) || 'contain',
+                                             opacity: (editForm.imageCropper.iconOpacity != null ? editForm.imageCropper.iconOpacity : 100) / 100
+                                         }">
                                     <i v-else class="fas fa-image" style="color:#ccc;font-size:20px;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)"></i>
                                 </div>
                                 <div class="icp-preview-info" v-if="['adSlot','wallpaper','sidebarBackground','sidebarBackgroundCollapsed'].includes(editForm.imageCropper.target)">{{ editForm.imageCropper.outputSizeW || 190 }}×{{ editForm.imageCropper.outputSizeH || 49 }} px</div>
@@ -4868,7 +4878,7 @@ const TEMPLATE = `
                                                  style="border-radius:6px;overflow:hidden;height:60px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s"
                                                  @mouseenter="$event.currentTarget.style.background='#cbd5e1'"
                                                  @mouseleave="$event.currentTarget.style.background='#e2e8f0'">
-                                                <img v-if="slot.image" :src="slot.image" class="ad-img" :class="slot.blink ? ('ad-blink-left-' + idx) : ''" :style="{ width:'100%', height:'100%', objectFit:(slot.fit||'contain'), pointerEvents:'none' }">
+                                                <img v-if="slot.image" :src="slot.image" class="ad-img" :class="(slot.blink && slot.blink.enabled) ? ('ad-blink-left-' + idx) : ''" :style="{ width:'100%', height:'100%', objectFit:(slot.fit||'contain'), pointerEvents:'none' }">
                                                 <i v-else class="fas fa-image" style="color:#94a3b8;font-size:18px"></i>
                                             </div>
                                             <div v-else
@@ -4915,7 +4925,7 @@ const TEMPLATE = `
                                                  style="border-radius:6px;overflow:hidden;height:60px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s"
                                                  @mouseenter="$event.currentTarget.style.background='#cbd5e1'"
                                                  @mouseleave="$event.currentTarget.style.background='#e2e8f0'">
-                                                <img v-if="slot.image" :src="slot.image" class="ad-img" :class="slot.blink ? ('ad-blink-right-' + idx) : ''" :style="{ width:'100%', height:'100%', objectFit:(slot.fit||'contain'), pointerEvents:'none' }">
+                                                <img v-if="slot.image" :src="slot.image" class="ad-img" :class="(slot.blink && slot.blink.enabled) ? ('ad-blink-right-' + idx) : ''" :style="{ width:'100%', height:'100%', objectFit:(slot.fit||'contain'), pointerEvents:'none' }">
                                                 <i v-else class="fas fa-image" style="color:#94a3b8;font-size:18px"></i>
                                             </div>
                                             <div v-else
