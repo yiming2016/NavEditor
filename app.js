@@ -13020,6 +13020,24 @@ sidebarTop: {
             // 自定义颜色：直接作为 css 颜色值使用
             return key || null;
         });
+        // 广告位裁剪大预览：背景按「背景不透明度」转为带 alpha 的颜色/渐变（裁剪框内同步显示透明度）
+        const currentAdSlotBgCssAlpha = computed(() => {
+            const key = currentAdSlotBackground.value;
+            if (!key || key === 'transparent') return '';
+            const alpha = clampVal((editForm.imageCropper.bgOpacity != null ? editForm.imageCropper.bgOpacity : 100), 0, 100) / 100;
+            if (alpha >= 1) return currentAdSlotBackgroundCss.value || '';
+            if (key === 'gradient') {
+                const stops = ['#ff4d4f', '#ff7a45', '#ffec3d', '#73d13d', '#36cfc9', '#40a9ff', '#9254de'];
+                const pos = [0, 0.17, 0.33, 0.5, 0.67, 0.83, 1];
+                const parts = stops.map((c, i) => {
+                    const rgb = hexToRgb(c);
+                    return 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + alpha + ') ' + Math.round(pos[i] * 100) + '%';
+                });
+                return 'linear-gradient(135deg, ' + parts.join(', ') + ')';
+            }
+            const rgb = hexToRgb(key);
+            return 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + alpha + ')';
+        });
         const setAdSlotBackground = (v) => {
             const slot = currentAdSlot.value;
             if (!slot) return;
@@ -13335,8 +13353,11 @@ sidebarTop: {
             if (bg === 'transparent') {
                 return { background: 'repeating-conic-gradient(#e5e5e5 0% 25%, #fff 0% 50%) 0 0 / 16px 16px' };
             }
-            // 自定义颜色（hex 字符串）直接作为纯色背景
-            return { background: bg };
+            // 自定义颜色（hex 字符串）：按「背景不透明度」转 rgba，与输出预览一致
+            const alpha = clampVal((editForm.imageCropper.bgOpacity != null ? editForm.imageCropper.bgOpacity : 100), 0, 100) / 100;
+            if (alpha >= 1) return { background: bg };
+            const rgb = hexToRgb(bg);
+            return { background: 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + alpha + ')' };
         };
 
         // ===== 自定义取色器逻辑 =====
@@ -15795,7 +15816,7 @@ sidebarTop: {
             initVpCropBox, onVpCropPointerDown, onVpCropPointerMove, onVpCropPointerUp, deferredInitVpCrop,
             setAspectRatio, toggleRatioLock, updateCropPreview, onAdOutputSizeChange, setCropperShape,
         adSlotFit, setAdSlotFit, currentAdSlot, currentAdSlotBlink, adSlotOutputBlinkClass, applyCurrentAdBlinkPreset,
-            adSlotBackgrounds, currentAdSlotBackground, currentAdSlotBackgroundCss, setAdSlotBackground,
+        adSlotBackgrounds, currentAdSlotBackground, currentAdSlotBackgroundCss, currentAdSlotBgCssAlpha, setAdSlotBackground,
             adSlotBgPicker, adSlotBgSvCanvas, adSlotBgHueCanvas, adSlotBgPopover,
             drawAdSlotBgSV, drawAdSlotBgHue, syncAdSlotBgHsvFromRgb, syncAdSlotBgFromHsl, syncAdSlotBgFromHex,
             onAdSlotBgSVPointerDown, onAdSlotBgSVPointerMove, onAdSlotBgSVPointerUp,

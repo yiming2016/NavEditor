@@ -3361,7 +3361,7 @@ const TEMPLATE = `
                                 <!-- 固定正方形视口（支持抓手拖动图片 + 裁剪框选区） -->
                                 <div class="circle-cropper-viewport"
                                  :class="{ 'circle-cropper-viewport-round': editForm.imageCropper.shape === 'circle', 'circle-cropper-viewport-square': editForm.imageCropper.shape === 'square', 'icp-viewport-dragging': editForm.imageCropper.circleDragState && editForm.imageCropper.circleDragState.active }"
-                                 :style="{ width: editForm.imageCropper.viewportSize + 'px', height: editForm.imageCropper.viewportSize + 'px', background: editForm.imageCropper.target === 'adSlot' ? (currentAdSlotBackgroundCss || '') : '' }"
+                                 :style="{ width: editForm.imageCropper.viewportSize + 'px', height: editForm.imageCropper.viewportSize + 'px', background: editForm.imageCropper.target === 'adSlot' ? (currentAdSlotBgCssAlpha || '') : '' }"
                                  @wheel.prevent="onCircleWheel"
                                  @pointerdown="onCirclePointerDown"
                                  @pointermove.stop="onViewportPointerMove"
@@ -3382,7 +3382,8 @@ const TEMPLATE = `
                                              width: (editForm.imageCropper._dispW || 280) + 'px',
                                              height: (editForm.imageCropper._dispH || 280) + 'px',
                                              transform: 'rotate(' + editForm.imageCropper.rotation + 'deg)',
-                                             objectFit: 'cover'
+                                             objectFit: 'cover',
+                                             opacity: (editForm.imageCropper.iconOpacity != null ? editForm.imageCropper.iconOpacity : 100) / 100
                                          }"
                                          draggable="false"
                                          @error="$event.target.style.display='none'">
