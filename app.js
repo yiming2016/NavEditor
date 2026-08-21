@@ -11805,6 +11805,10 @@ sidebarTop: {
             ctx.rotation = 0;
             // 广告位背景：随槽位保存的背景初始化（透明/纯色/渐变）
             ctx.background = slot.background || 'transparent';
+            // 输出预览状态：未裁剪时显示原图（动态 AVIF 自行播放），动过裁剪框后显示裁剪结果
+            ctx._cropTouched = false;
+            ctx._vpCropInit = null;
+            ctx._panInit = null;
             // 视口状态初始化
             ctx.imgTranslateX = 0;
             ctx.imgTranslateY = 0;
@@ -12507,6 +12511,10 @@ sidebarTop: {
             ctx.vpCrop.y = Math.round(cropY);
             ctx.vpCrop.w = Math.round(cropW);
             ctx.vpCrop.h = Math.round(cropH);
+            // 记录初始裁剪状态：未裁剪时输出预览显示原图（动态 AVIF 可自行播放），动过裁剪框后显示裁剪结果
+            ctx._vpCropInit = { x: ctx.vpCrop.x, y: ctx.vpCrop.y, w: ctx.vpCrop.w, h: ctx.vpCrop.h };
+            ctx._panInit = { x: ctx.imgTranslateX || 0, y: ctx.imgTranslateY || 0 };
+            ctx._cropTouched = false;
         };
 
         // 延迟保险：确保裁剪框在 DOM 渲染后正确对齐图片
@@ -12770,6 +12778,19 @@ sidebarTop: {
         const updateCropPreview = () => {
             // 延迟到 nextTick 确保 DOM 已更新
             setTimeout(() => {
+                const ctx0 = editForm.imageCropper;
+                // 广告位：检测裁剪框/缩放/旋转/平移是否被改动
+                // （未改动时输出预览显示原图，动态 AVIF 可自行播放；改动后切到裁剪结果画布）
+                if (ctx0 && ctx0.target === 'adSlot' && !ctx0._cropTouched && ctx0._vpCropInit) {
+                    const c0 = ctx0._vpCropInit;
+                    const p0 = ctx0._panInit || { x: 0, y: 0 };
+                    if (Math.abs(ctx0.vpCrop.x - c0.x) > 0.5 || Math.abs(ctx0.vpCrop.y - c0.y) > 0.5 ||
+                        Math.abs(ctx0.vpCrop.w - c0.w) > 0.5 || Math.abs(ctx0.vpCrop.h - c0.h) > 0.5 ||
+                        Math.abs((ctx0.imgScale || 1) - 1) > 0.001 || Math.abs(ctx0.rotation || 0) > 0.01 ||
+                        Math.abs((ctx0.imgTranslateX || 0) - p0.x) > 0.5 || Math.abs((ctx0.imgTranslateY || 0) - p0.y) > 0.5) {
+                        ctx0._cropTouched = true;
+                    }
+                }
                 const canvas = document.querySelector('.icp-preview-canvas');
                 if (!canvas) {
                     // 弹窗可能尚未渲染，延迟重试（最多 5 次，避免无限循环）
