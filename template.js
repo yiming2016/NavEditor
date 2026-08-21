@@ -3769,7 +3769,8 @@ const TEMPLATE = `
                                     <input type="range" min="0" max="100" step="1"
                                            :value="editForm.imageCropper.iconOpacity != null ? editForm.imageCropper.iconOpacity : 100"
                                            style="flex:1;height:16px;cursor:pointer;accent-color:#597ef7"
-                                           @input="editForm.imageCropper.iconOpacity = Number($event.target.value); updateCropPreview()">
+                                           @input="editForm.imageCropper.iconOpacity = Number($event.target.value); updateCropPreview()"
+                                           @wheel.prevent="onImageCropperOpacityWheel">
                                 </div>
                             </div>
 
