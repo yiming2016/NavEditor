@@ -3764,7 +3764,8 @@ const TEMPLATE = `
                                     <input type="number" class="form-input" min="0" max="100" step="1"
                                            :value="editForm.imageCropper.iconOpacity != null ? editForm.imageCropper.iconOpacity : 100"
                                            style="width:64px;text-align:center;padding:4px"
-                                           @change="let o = Math.max(0, Math.min(100, Number($event.target.value) || 0)); editForm.imageCropper.iconOpacity = o; updateCropPreview()">
+                                           @change="let o = Math.max(0, Math.min(100, Number($event.target.value) || 0)); editForm.imageCropper.iconOpacity = o; updateCropPreview()"
+                                           @wheel.prevent="onImageCropperOpacityWheel">
                                     <span style="font-size:11px;color:var(--text-muted)">%</span>
                                     <input type="range" min="0" max="100" step="1"
                                            :value="editForm.imageCropper.iconOpacity != null ? editForm.imageCropper.iconOpacity : 100"
