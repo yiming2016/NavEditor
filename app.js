@@ -5159,9 +5159,11 @@ sidebarTop: {
         // 持久注入 keyframes 到 <head>（Vue 的 v-html 在 <style> 元素上不会渲染出 <style>，故改用此方式）。
         // 该 <style> 常驻、只同步文本，不重建预览 <img>，闪烁动画持续运行。
         const syncAdBlinkStyle = () => {
+            const css = adBlinkStyle.value || '';
             let el = document.getElementById('adBlinkKeyframes');
             if (!el) { el = document.createElement('style'); el.id = 'adBlinkKeyframes'; document.head.appendChild(el); }
-            el.textContent = adBlinkStyle.value || '';
+            // 仅在内容变化时写入，避免重设相同样式导致部分浏览器重启正在运行的闪烁动画
+            if (el.textContent !== css) el.textContent = css;
         };
         onMounted(syncAdBlinkStyle);
         watch(adBlinkStyle, syncAdBlinkStyle);
