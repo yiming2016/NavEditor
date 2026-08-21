@@ -3672,23 +3672,11 @@ const TEMPLATE = `
                                          borderRadius: editForm.imageCropper.shape === 'round' ? Math.round(Math.min(icpPreviewDims.w, icpPreviewDims.h) * 0.16) + 'px' : '',
                                          background: editForm.imageCropper.target === 'adSlot' ? (currentAdSlotBgCssAlpha || '') : ''
                                      }">
-                                    <img v-if="editForm.imageCropper.target === 'adSlot' && !editForm.imageCropper._cropTouched && adPreviewImgSrc"
+                                    <img v-if="editForm.imageCropper.target === 'adSlot' && adPreviewImgSrc"
                                          :src="adPreviewImgSrc"
                                          class="icp-preview-img"
                                          :class="adSlotOutputBlinkClass"
-                                         :style="{
-                                             width:'100%',
-                                             height:'100%',
-                                             objectFit: (currentAdSlot && currentAdSlot.fit) || 'contain',
-                                             opacity: (editForm.imageCropper.iconOpacity != null ? editForm.imageCropper.iconOpacity : 100) / 100
-                                         }">
-                                    <canvas v-else-if="editForm.imageCropper.target === 'adSlot' && adPreviewImgSrc"
-                                            class="icp-preview-canvas"
-                                            :class="adSlotOutputBlinkClass"
-                                            :ref="'cropPreviewCanvas'"
-                                            :width="editForm.imageCropper.outputSizeW || 190"
-                                            :height="editForm.imageCropper.outputSizeH || 49"
-                                            style="width:100%;height:100%;object-fit:contain;display:block"></canvas>
+                                         :style="adSlotOutputPreviewStyle">
                                     <canvas v-else-if="editForm.imageCropper.target !== 'adSlot' && (editForm.imageCropper.sourceImage || (editForm.imageCropper.target === 'site' && editForm.site.logo) || editForm.imageCropper.target === 'sidebarBackground' || editForm.imageCropper.target === 'sidebarBackgroundCollapsed')"
                                             class="icp-preview-canvas"
                                             :class="adSlotOutputBlinkClass"
