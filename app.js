@@ -1990,6 +1990,13 @@ body.modal-open{overflow:auto!important;padding-right:0!important}
             const effW = (!adSlots.unifiedSize && (s.width || s.height)) ? (Number(s.width) || adW) : adW;
             const effH = (!adSlots.unifiedSize && (s.width || s.height)) ? (Number(s.height) || adH) : adH;
             styleAttr += `width:${effW}px;height:${effH}px;justify-self:start;align-self:start;`;
+            // 广告格背景：与裁剪输出一致（透明/纯色/渐变），保证保留原始动画图时背景仍显示
+            const _bg = s.background;
+            if (_bg && _bg !== 'transparent') {
+                styleAttr += 'background:' + (_bg === 'gradient'
+                    ? 'linear-gradient(135deg, #ff4d4f, #ff7a45, #ffec3d, #73d13d, #36cfc9, #40a9ff, #9254de)'
+                    : this.escapeAttr(_bg)) + ';';
+            }
             if (s.url) styleAttr += 'cursor:pointer;';
             html += `\n    <div class="ad-slot" style="${styleAttr}"${(s.url)?` onclick="window.open('${this.escapeAttr(this.normalizeLink(s.url))}','_blank')"`:''}>${inner}</div>`;
         });
@@ -13088,6 +13095,17 @@ sidebarTop: {
             const rgb = hexToRgb(key);
             return 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + alpha + ')';
         });
+        // 广告位槽位背景的 CSS（透明→''，渐变→渐变样式，纯色→颜色），供配置弹窗预览与站点输出使用
+        const adSlotBgCss = (slot) => {
+            if (!slot) return '';
+            const bg = slot.background;
+            if (!bg || bg === 'transparent') return '';
+            if (bg === 'gradient') {
+                const g = adSlotBackgrounds && adSlotBackgrounds.find(b => b.key === 'gradient');
+                return g ? g.css : '';
+            }
+            return bg;
+        };
         const setAdSlotBackground = (v) => {
             const slot = currentAdSlot.value;
             if (!slot) return;
@@ -15888,7 +15906,7 @@ sidebarTop: {
             initVpCropBox, onVpCropPointerDown, onVpCropPointerMove, onVpCropPointerUp, deferredInitVpCrop,
             setAspectRatio, toggleRatioLock, updateCropPreview, onAdOutputSizeChange, setCropperShape,
         adSlotFit, setAdSlotFit, currentAdSlot, currentAdSlotBlink, adPreviewImgSrc, adSlotOutputPreviewStyle, adSlotOutputBlinkClass, applyCurrentAdBlinkPreset,
-        adSlotBackgrounds, currentAdSlotBackground, currentAdSlotBackgroundCss, currentAdSlotBgCssAlpha, setAdSlotBackground,
+        adSlotBackgrounds, currentAdSlotBackground, currentAdSlotBackgroundCss, currentAdSlotBgCssAlpha, adSlotBgCss, setAdSlotBackground,
             adSlotBgPicker, adSlotBgSvCanvas, adSlotBgHueCanvas, adSlotBgPopover,
             drawAdSlotBgSV, drawAdSlotBgHue, syncAdSlotBgHsvFromRgb, syncAdSlotBgFromHsl, syncAdSlotBgFromHex,
             onAdSlotBgSVPointerDown, onAdSlotBgSVPointerMove, onAdSlotBgSVPointerUp,

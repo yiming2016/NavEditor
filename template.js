@@ -4870,14 +4870,16 @@ const TEMPLATE = `
                                         <!-- 预览区：开启/关闭都显示预览，保持卡片高度一致；关闭时仍可查看已上传图片 -->
                                         <div style="margin-top:6px">
                                             <div v-if="slot.type === 'image'" @click="openAdImageCropper('left', idx)"
-                                                 style="border-radius:6px;overflow:hidden;height:60px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s"
+                                                 :style="{ background: adSlotBgCss(slot) || '#e2e8f0' }"
+                                                 style="border-radius:6px;overflow:hidden;height:60px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s"
                                                  @mouseenter="$event.currentTarget.style.background='#cbd5e1'"
-                                                 @mouseleave="$event.currentTarget.style.background='#e2e8f0'">
+                                                 @mouseleave="$event.currentTarget.style.background=''">
                                                 <img v-if="slot.image" :src="slot.sourceImage || slot.image" class="ad-img" :class="(slot.blink && slot.blink.enabled) ? ('ad-blink-left-' + idx) : ''" :style="{ width:'100%', height:'100%', objectFit:(slot.fit||'contain'), pointerEvents:'none' }">
                                                 <i v-else class="fas fa-image" style="color:#94a3b8;font-size:18px"></i>
                                             </div>
                                             <div v-else
-                                                 style="position:relative;border-radius:6px;overflow:hidden;height:60px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;cursor:not-allowed;opacity:.85">
+                                                 :style="{ background: adSlotBgCss(slot) || '#e2e8f0' }"
+                                                 style="position:relative;border-radius:6px;overflow:hidden;height:60px;display:flex;align-items:center;justify-content:center;cursor:not-allowed;opacity:.85">
                                                 <img v-if="slot.image" :src="slot.image" :style="{ width:'100%', height:'100%', objectFit:(slot.fit||'contain'), pointerEvents:'none', opacity:.6 }">
                                                 <i v-else class="fas fa-image" style="color:#94a3b8;font-size:18px"></i>
                                                 <div v-if="slot.image" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.25)">
@@ -4917,14 +4919,16 @@ const TEMPLATE = `
                                         <!-- 预览区：开启/关闭都显示预览，保持卡片高度一致；关闭时仍可查看已上传图片 -->
                                         <div style="margin-top:6px">
                                             <div v-if="slot.type === 'image'" @click="openAdImageCropper('right', idx)"
-                                                 style="border-radius:6px;overflow:hidden;height:60px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s"
+                                                 :style="{ background: adSlotBgCss(slot) || '#e2e8f0' }"
+                                                 style="border-radius:6px;overflow:hidden;height:60px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s"
                                                  @mouseenter="$event.currentTarget.style.background='#cbd5e1'"
-                                                 @mouseleave="$event.currentTarget.style.background='#e2e8f0'">
+                                                 @mouseleave="$event.currentTarget.style.background=''">
                                                 <img v-if="slot.image" :src="slot.sourceImage || slot.image" class="ad-img" :class="(slot.blink && slot.blink.enabled) ? ('ad-blink-right-' + idx) : ''" :style="{ width:'100%', height:'100%', objectFit:(slot.fit||'contain'), pointerEvents:'none' }">
                                                 <i v-else class="fas fa-image" style="color:#94a3b8;font-size:18px"></i>
                                             </div>
                                             <div v-else
-                                                 style="position:relative;border-radius:6px;overflow:hidden;height:60px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;cursor:not-allowed;opacity:.85">
+                                                 :style="{ background: adSlotBgCss(slot) || '#e2e8f0' }"
+                                                 style="position:relative;border-radius:6px;overflow:hidden;height:60px;display:flex;align-items:center;justify-content:center;cursor:not-allowed;opacity:.85">
                                                 <img v-if="slot.image" :src="slot.image" :style="{ width:'100%', height:'100%', objectFit:(slot.fit||'contain'), pointerEvents:'none', opacity:.6 }">
                                                 <i v-else class="fas fa-image" style="color:#94a3b8;font-size:18px"></i>
                                                 <div v-if="slot.image" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.25)">
