@@ -11805,6 +11805,9 @@ sidebarTop: {
             ctx.rotation = 0;
             // 广告位背景：随槽位保存的背景初始化（透明/纯色/渐变）
             ctx.background = slot.background || 'transparent';
+            // 初始裁剪状态：供"未编辑即保留原始动画图"判断
+            ctx._vpCropInit = null;
+            ctx._panInit = null;
             // 视口状态初始化
             ctx.imgTranslateX = 0;
             ctx.imgTranslateY = 0;
@@ -12507,6 +12510,9 @@ sidebarTop: {
             ctx.vpCrop.y = Math.round(cropY);
             ctx.vpCrop.w = Math.round(cropW);
             ctx.vpCrop.h = Math.round(cropH);
+            // 记录初始裁剪状态（供"未编辑即保留原始动画图"判断）
+            ctx._vpCropInit = { x: ctx.vpCrop.x, y: ctx.vpCrop.y, w: ctx.vpCrop.w, h: ctx.vpCrop.h };
+            ctx._panInit = { x: ctx.imgTranslateX || 0, y: ctx.imgTranslateY || 0 };
         };
 
         // 延迟保险：确保裁剪框在 DOM 渲染后正确对齐图片
@@ -14162,6 +14168,28 @@ sidebarTop: {
                 const imgEl = ctx._imgEl;
                 if (!imgEl) { showToast('请先选择图片', 'warning'); return; }
                 try {
+                    // 未做破坏性编辑（无旋转/缩放/平移/裁剪改动、无背景、不透明度100、方形）时保留原始图片，
+                    // 让动态 AVIF/GIF/WebP 的动画在站点与预览中都能播放
+                    const c0 = ctx._vpCropInit;
+                    const p0 = ctx._panInit || { x: 0, y: 0 };
+                    const untouched = c0 &&
+                        Math.abs(ctx.vpCrop.x - c0.x) < 0.5 && Math.abs(ctx.vpCrop.y - c0.y) < 0.5 &&
+                        Math.abs(ctx.vpCrop.w - c0.w) < 0.5 && Math.abs(ctx.vpCrop.h - c0.h) < 0.5 &&
+                        Math.abs((ctx.imgScale || 1) - 1) < 0.001 && Math.abs(ctx.rotation || 0) < 0.01 &&
+                        Math.abs((ctx.imgTranslateX || 0) - (p0.x || 0)) < 0.5 && Math.abs((ctx.imgTranslateY || 0) - (p0.y || 0)) < 0.5;
+                    const noBg = !ctx.background || ctx.background === 'transparent';
+                    const fullOpacity = ctx.iconOpacity == null || ctx.iconOpacity >= 100;
+                    const square = ctx.shape !== 'round';
+                    if (untouched && noBg && fullOpacity && square && ctx.sourceImage) {
+                        if (!slot.sourceImage && ctx.sourceImage) slot.sourceImage = ctx.sourceImage;
+                        slot.image = ctx.sourceImage;
+                        slot.type = 'image';
+                        slot.shape = ctx.shape || 'square';
+                        persistData({ mark: true, silent: true })
+                        showToast('已保留原始图片（动画可播放）', 'success');
+                        closeLogoCropper();
+                        return;
+                    }
                     ctx.background = slot.background || 'transparent';
                     const dataURL = cropVpToDataURL(ctx);
                     // 保留原始原图（首次上传时已写入 sourceImage，老数据没有时兜底保存当前源图）
