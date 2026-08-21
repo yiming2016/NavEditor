@@ -4867,7 +4867,7 @@ const TEMPLATE = `
                                                  style="border-radius:6px;overflow:hidden;height:60px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s"
                                                  @mouseenter="$event.currentTarget.style.background='#cbd5e1'"
                                                  @mouseleave="$event.currentTarget.style.background='#e2e8f0'">
-                                                <img v-if="slot.image" :src="slot.image" class="ad-img" :class="slot.blink ? ('ad-blink-left-' + idx) : ''" :style="{ width:'100%', height:'100%', objectFit:(slot.fit||'contain'), pointerEvents:'none' }">
+                                                <img v-if="slot.image" :src="slot.image" class="ad-img" :class="(slot.blink && slot.blink.enabled) ? ('ad-blink-left-' + idx) : ''" :style="{ width:'100%', height:'100%', objectFit:(slot.fit||'contain'), pointerEvents:'none' }">
                                                 <i v-else class="fas fa-image" style="color:#94a3b8;font-size:18px"></i>
                                             </div>
                                             <div v-else
@@ -4914,7 +4914,7 @@ const TEMPLATE = `
                                                  style="border-radius:6px;overflow:hidden;height:60px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s"
                                                  @mouseenter="$event.currentTarget.style.background='#cbd5e1'"
                                                  @mouseleave="$event.currentTarget.style.background='#e2e8f0'">
-                                                <img v-if="slot.image" :src="slot.image" class="ad-img" :class="slot.blink ? ('ad-blink-right-' + idx) : ''" :style="{ width:'100%', height:'100%', objectFit:(slot.fit||'contain'), pointerEvents:'none' }">
+                                                <img v-if="slot.image" :src="slot.image" class="ad-img" :class="(slot.blink && slot.blink.enabled) ? ('ad-blink-right-' + idx) : ''" :style="{ width:'100%', height:'100%', objectFit:(slot.fit||'contain'), pointerEvents:'none' }">
                                                 <i v-else class="fas fa-image" style="color:#94a3b8;font-size:18px"></i>
                                             </div>
                                             <div v-else
