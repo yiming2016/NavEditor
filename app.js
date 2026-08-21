@@ -13014,7 +13014,11 @@ sidebarTop: {
             const cr = (ctx.vpCrop && ctx.vpCrop.w > 0) ? ctx.vpCrop : { x: 0, y: 0, w: vp, h: vp };
             const cropW = cr.w > 0 ? cr.w : vp;
             const cropH = cr.h > 0 ? cr.h : vp;
-            const k = outW / cropW;
+            // 预览框显示尺寸（广告位为输出尺寸放大显示），裁剪区域需按此尺寸铺满
+            const dims = (typeof icpPreviewDims !== 'undefined' && icpPreviewDims.value) ? icpPreviewDims.value : null;
+            const boxW = (dims && dims.w > 0) ? dims.w : outW;
+            const boxH = (dims && dims.h > 0) ? dims.h : outH;
+            const k = boxW / cropW;
             const imgW = Math.max(1, dispW * s * k);
             const imgH = Math.max(1, dispH * s * k);
             const centerX = (dx + dispW * s / 2 - cr.x) * k;
