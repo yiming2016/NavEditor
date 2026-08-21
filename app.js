@@ -5123,7 +5123,7 @@ sidebarTop: {
                             const onPct = Math.max(1, Math.min(99, Math.round(dur / cyc * 100)));
                             const dim = (s.blink.opacity != null) ? Number(s.blink.opacity) : 0.5;
                             css += `@keyframes _adBlink_${side}_${i}{0%{opacity:1;filter:brightness(1.25)}${onPct}%{opacity:1;filter:brightness(1.25)}${onPct}%{opacity:${dim};filter:brightness(.7)}100%{opacity:${dim};filter:brightness(.7)}}`;
-                            css += `.ad-img.ad-blink-${side}-${i}{animation:_adBlink_${side}_${i} ${cyc}ms ease-in-out infinite;}`;
+                            css += `.ad-blink-${side}-${i}{animation:_adBlink_${side}_${i} ${cyc}ms ease-in-out infinite;}`;
                         }
                     });
                 });
@@ -12949,6 +12949,14 @@ sidebarTop: {
             const slot = currentAdSlot.value;
             return slot ? slot.blink : null;
         });
+        // 广告位输出预览闪烁类：开启"图片闪烁"时让右侧"输出预览"画布实时闪烁（AVIF 等格式同样生效）
+        const adSlotOutputBlinkClass = computed(() => {
+            const ctx = editForm.imageCropper;
+            if (!ctx || ctx.target !== 'adSlot' || ctx.adSide == null || ctx.adIdx == null) return '';
+            const slot = data.adSlots[ctx.adSide] && data.adSlots[ctx.adSide][ctx.adIdx];
+            if (!slot || !slot.blink || !slot.blink.enabled) return '';
+            return 'ad-blink-' + ctx.adSide + '-' + ctx.adIdx;
+        });
         const applyCurrentAdBlinkPreset = (presetKey) => {
             const ctx = editForm.imageCropper;
             if (ctx.adSide == null || ctx.adIdx == null) return;
@@ -15718,7 +15726,7 @@ sidebarTop: {
             openSearchEngineIconEditor,
             initVpCropBox, onVpCropPointerDown, onVpCropPointerMove, onVpCropPointerUp, deferredInitVpCrop,
             setAspectRatio, toggleRatioLock, updateCropPreview, onAdOutputSizeChange, setCropperShape,
-            adSlotFit, setAdSlotFit, currentAdSlot, currentAdSlotBlink, applyCurrentAdBlinkPreset,
+        adSlotFit, setAdSlotFit, currentAdSlot, currentAdSlotBlink, adSlotOutputBlinkClass, applyCurrentAdBlinkPreset,
             adSlotBackgrounds, currentAdSlotBackground, currentAdSlotBackgroundCss, setAdSlotBackground,
             adSlotBgPicker, adSlotBgSvCanvas, adSlotBgHueCanvas, adSlotBgPopover,
             drawAdSlotBgSV, drawAdSlotBgHue, syncAdSlotBgHsvFromRgb, syncAdSlotBgFromHsl, syncAdSlotBgFromHex,

@@ -3530,11 +3530,6 @@ const TEMPLATE = `
                                     <input type="checkbox" v-model="currentAdSlotBlink.enabled" style="margin:0"> ✨图片闪烁
                                 </label>
                                 <div v-if="currentAdSlotBlink && currentAdSlotBlink.enabled" style="display:flex;flex-direction:column;gap:8px">
-                                    <!-- 实时闪烁预览：勾选后立即看到效果（用 head 注入的 keyframes + ad-blink 类） -->
-                                    <div class="icp-blink-preview" :style="{ width:'100%', height:'48px', borderRadius:'6px', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center', background:'#e2e8f0', border:'1px solid rgba(0,0,0,.06)', marginBottom:'2px' }">
-                                        <img v-if="currentAdSlot && currentAdSlot.image" :src="adImgSrc(currentAdSlot)" class="ad-img" :class="'ad-blink-' + editForm.imageCropper.adSide + '-' + editForm.imageCropper.adIdx" style="width:100%;height:100%;object-fit:contain;pointer-events:none">
-                                        <div v-else class="ad-img" :class="'ad-blink-' + editForm.imageCropper.adSide + '-' + editForm.imageCropper.adIdx" style="width:100%;height:100%;background:linear-gradient(135deg,#ff6b6b,#ffd740);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:600">闪烁预览</div>
-                                    </div>
                                     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
                                         <span style="font-size:11px;color:var(--text-muted)">预设</span>
                                         <button type="button" class="btn btn-sm" @click="applyCurrentAdBlinkPreset('crazy')" :style="{background:currentAdSlotBlink.preset==='crazy'?'#fff0f0':'#f8f9fa',borderColor:currentAdSlotBlink.preset==='crazy'?'#e53e3e':'#ddd',color:currentAdSlotBlink.preset==='crazy'?'#e53e3e':'#555',fontSize:'11px',padding:'3px 8px',borderRadius:'4px',cursor:'pointer',border:'1px solid'}">🔥</button>
@@ -3665,6 +3660,7 @@ const TEMPLATE = `
                                      }">
                                     <canvas v-if="editForm.imageCropper.sourceImage || (editForm.imageCropper.target === 'site' && editForm.site.logo) || editForm.imageCropper.target === 'sidebarBackground' || editForm.imageCropper.target === 'sidebarBackgroundCollapsed'"
                                             class="icp-preview-canvas"
+                                            :class="adSlotOutputBlinkClass"
                                             :ref="'cropPreviewCanvas'"
                                             :width="['adSlot','wallpaper','sidebarBackground','sidebarBackgroundCollapsed'].includes(editForm.imageCropper.target) ? (editForm.imageCropper.outputSizeW || 190) : (editForm.imageCropper.outputSize || 64)"
                                             :height="['adSlot','wallpaper','sidebarBackground','sidebarBackgroundCollapsed'].includes(editForm.imageCropper.target) ? (editForm.imageCropper.outputSizeH || 49) : (editForm.imageCropper.outputSize || 64)"
