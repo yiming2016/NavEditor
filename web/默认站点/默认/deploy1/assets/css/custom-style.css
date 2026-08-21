@@ -174,7 +174,34 @@ footer.main-footer .footer-text a:hover {
     box-shadow: 0 0 0 2px rgba(255, 255, 255, .9), 0 4px 14px rgba(0, 0, 0, .28);
 }
 
-
+/* ===== 搜索栏响应式：优先压缩，必要时隐藏 ===== */
+@media (max-width: 1100px) {
+    .header-big .super-search-fm,
+    .header-big #search-list-menu {
+        max-width: 480px !important;
+    }
+    .header-big #search-text {
+        font-size: 14px;
+    }
+}
+@media (max-width: 900px) {
+    .header-big .super-search-fm,
+    .header-big #search-list-menu {
+        max-width: 340px !important;
+    }
+    .header-big .s-type-list label span {
+        font-size: 12px;
+    }
+    .header-big .search-key {
+        font-size: 13px;
+    }
+}
+@media (max-width: 720px) {
+    .header-big #search-list-menu,
+    .header-big .super-search-fm {
+        display: none !important;
+    }
+}
 
 
 
