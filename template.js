@@ -3006,6 +3006,24 @@ const TEMPLATE = `
                                 <button class="color-swatch" :class="{ active: editForm.iconEditor.bgColor === '#b37feb' }" @click="editForm.iconEditor.bgColor = '#b37feb'" title="紫色" style="background:#b37feb"></button>
                                 <button class="color-swatch ie-custom-color-btn" :class="{ active: isCustomIconBg('image') }" title="自定义颜色（含不透明度）" @click="openIconBgColorPicker" style="background:conic-gradient(red,yellow,lime,aqua,blue,magenta,red);border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.15);cursor:pointer"></button>
                             </div>
+                            <div class="ie-control-row">
+                                <span class="ie-label">格式：</span>
+                                <select class="form-input ie-output-input" style="width:92px;height:28px;padding:0 4px"
+                                        :value="editForm.iconEditor.outputFormat || 'auto'"
+                                        @change="editForm.iconEditor.outputFormat = $event.target.value">
+                                    <option value="auto">自动</option>
+                                    <option value="avif">AVIF</option>
+                                    <option value="webp">WebP</option>
+                                    <option value="png">PNG</option>
+                                    <option value="jpeg">JPEG</option>
+                                </select>
+                                <span class="ie-unit">质量</span>
+                                <input type="number" class="form-input ie-output-input" style="width:56px"
+                                       :value="editForm.iconEditor.outputQuality != null ? editForm.iconEditor.outputQuality : 85"
+                                       min="1" max="100" step="1"
+                                       @change="editForm.iconEditor.outputQuality = Math.max(1, Math.min(100, Number($event.target.value) || 85))">
+                                <span class="ie-unit">%</span>
+                            </div>
                             <div class="ie-control-row ie-output-row">
                                 <span class="ie-label">输出：</span>
                                 <input type="number" v-model.number="editForm.iconEditor.outputSize" min="16" max="512" class="form-input ie-output-input"> px
@@ -3270,6 +3288,24 @@ const TEMPLATE = `
                                         <button class="color-swatch" :class="{ active: editForm.imageCropper.hLogoBg === '#597ef7' }" @click="editForm.imageCropper.hLogoBg = '#597ef7'" title="蓝色" style="background:#597ef7"></button>
                                         <button class="color-swatch" :class="{ active: editForm.imageCropper.hLogoBg === '#b37feb' }" @click="editForm.imageCropper.hLogoBg = '#b37feb'" title="紫色" style="background:#b37feb"></button>
                                         <button class="color-swatch ie-custom-color-btn" :class="{ active: editForm.imageCropper.hLogoBg && editForm.imageCropper.hLogoBg.startsWith('#') }" title="自定义颜色（含不透明度）" @click="openColorPicker({ value: editForm.imageCropper.hLogoBg, onChange: (val) => { editForm.imageCropper.hLogoBg = val; updateCropPreview(); }, onConfirm: (val) => { editForm.imageCropper.hLogoBg = val; editForm.imageCropper.hLogoCustomBg = val; updateCropPreview(); } })" style="background:conic-gradient(red,yellow,lime,aqua,blue,magenta,red);border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.15);cursor:pointer"></button>
+                                    </div>
+                                    <div class="ie-control-row">
+                                        <span class="ie-label">格式：</span>
+                                        <select class="form-input ie-output-input" style="width:92px;height:28px;padding:0 4px"
+                                                :value="editForm.imageCropper.outputFormat || 'auto'"
+                                                @change="editForm.imageCropper.outputFormat = $event.target.value">
+                                            <option value="auto">自动</option>
+                                            <option value="avif">AVIF</option>
+                                            <option value="webp">WebP</option>
+                                            <option value="png">PNG</option>
+                                            <option value="jpeg">JPEG</option>
+                                        </select>
+                                        <span class="ie-unit">质量</span>
+                                        <input type="number" class="form-input ie-output-input" style="width:56px"
+                                               :value="editForm.imageCropper.outputQuality != null ? editForm.imageCropper.outputQuality : 85"
+                                               min="1" max="100" step="1"
+                                               @change="editForm.imageCropper.outputQuality = Math.max(1, Math.min(100, Number($event.target.value) || 85))">
+                                        <span class="ie-unit">%</span>
                                     </div>
                                     <div class="ie-control-row ie-output-row">
                                         <span class="ie-label">输出：</span>

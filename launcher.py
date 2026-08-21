@@ -2556,6 +2556,47 @@ class SilentHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         """处理 POST 请求：部署文件列表 / 打包 zip / 保存当前页为模板 / 记录选中模板"""
         # 调试日志：打印所有 POST 请求，便于排查 404
         print('[NavEditor POST]', self.path)
+        # ===== 图片格式转换 API（AVIF/WebP/JPEG，本地 Pillow 编码）=====
+        # 浏览器（尤其 Chrome）不支持 canvas 编码 AVIF，前端把浏览器可编码的图传到这里转成目标格式。
+        if self.path.split('?')[0] == '/api/image-convert':
+            try:
+                content_length = int(self.headers.get('Content-Length', 0))
+                body = self.rfile.read(content_length) if content_length > 0 else b'{}'
+                payload = json.loads(body.decode('utf-8'))
+                data_url = payload.get('dataUrl') or ''
+                fmt = (payload.get('format') or 'avif').lower().strip()
+                quality = int(payload.get('quality') or 85)
+                if fmt not in ('avif', 'webp', 'jpeg', 'png'):
+                    raise ValueError('不支持的输出格式: %s' % fmt)
+                m = re.match(r'^data:image/[a-z0-9.+-]+;base64,(.*)$', data_url, re.S)
+                if not m:
+                    raise ValueError('无法解析图片数据')
+                raw = base64.b64decode(m.group(1))
+                import io as _io
+                try:
+                    from PIL import Image
+                except Exception:
+                    raise ValueError('当前版本未内置图片转换组件')
+                img = Image.open(_io.BytesIO(raw))
+                if fmt in ('jpeg',):
+                    if img.mode in ('RGBA', 'LA', 'P'):
+                        bg = Image.new('RGB', img.size, (255, 255, 255))
+                        if img.mode in ('RGBA', 'LA'):
+                            bg.paste(img.convert('RGBA'), mask=img.split()[-1])
+                        else:
+                            bg.paste(img.convert('RGB'))
+                        img = bg
+                    else:
+                        img = img.convert('RGB')
+                else:
+                    img = img.convert('RGBA')
+                out = _io.BytesIO()
+                img.save(out, fmt.upper(), quality=quality)
+                b64 = base64.b64encode(out.getvalue()).decode('ascii')
+                self._send_json({'ok': True, 'dataUrl': 'data:image/%s;base64,%s' % (fmt, b64)})
+            except Exception as e:
+                self._send_error(str(e))
+            return
         # ===== 账号磁盘存储 API（password/ 下按类型分文件）=====
         if self.path.split('?')[0] == '/api/accounts':
             self._handle_accounts_post()

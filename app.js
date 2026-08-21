@@ -59,6 +59,94 @@ const Utils = {
     },
 
     /**
+     * 检测当前浏览器是否支持用 canvas 编码指定图片格式
+     * @param {string} fmt - avif | webp | jpeg | png
+     */
+    supportsImageFormat(fmt) {
+        try {
+            const c = document.createElement('canvas');
+            c.width = 1;
+            c.height = 1;
+            const d = c.toDataURL('image/' + fmt);
+            return d.indexOf('data:image/' + fmt) === 0;
+        } catch (e) {
+            return false;
+        }
+    },
+
+    /**
+     * 把期望格式解析为实际可用的输出格式（自动回退）
+     * auto: avif -> webp -> png；jpeg 不支持时回退 png
+     */
+    resolveImageFormat(fmt) {
+        const want = String(fmt || 'auto').toLowerCase();
+        const order = (want === 'jpeg') ? ['jpeg', 'png'] :
+                      (want === 'webp') ? ['webp', 'png'] :
+                      (want === 'avif') ? ['avif', 'webp', 'png'] :
+                      (want === 'png')  ? ['png'] : ['avif', 'webp', 'png'];
+        for (const f of order) {
+            if (this.supportsImageFormat(f)) return f;
+        }
+        return 'png';
+    },
+
+    resolveImageMime(fmt) {
+        return 'image/' + this.resolveImageFormat(fmt);
+    },
+
+    imageQuality(q) {
+        const n = Number(q);
+        if (!isFinite(n) || n <= 0) return 0.85;
+        return Math.min(100, Math.max(1, n)) / 100;
+    },
+
+    /**
+     * 通过本地后端（Pillow）同步转换图片格式；失败返回 null。
+     * 仅用于浏览器无法编码的格式（如 Chrome 的 AVIF），后端在本机所以同步请求很快。
+     */
+    imageToDataUrlSync(dataUrl, fmt, quality) {
+        try {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/image-convert', false);
+            xhr.setRequestHeader('Content-Type', 'application/json; charset=utf-8');
+            xhr.send(JSON.stringify({
+                dataUrl: dataUrl,
+                format: String(fmt || 'avif').toLowerCase(),
+                quality: Math.round(Utils.imageQuality(quality) * 100)
+            }));
+            if (xhr.status === 200) {
+                const d = JSON.parse(xhr.responseText);
+                if (d && d.ok && d.dataUrl) return d.dataUrl;
+            }
+        } catch (e) {}
+        return null;
+    },
+
+    /**
+     * 按目标格式输出图片 dataURL：
+     * - 小图（<4096px²）auto 用 PNG，大图 auto 用 AVIF
+     * - 浏览器能编码的格式直接用 canvas；不能编码的（AVIF）交给本地后端转换
+     */
+    finalImageDataUrl(canvas, fmt, quality) {
+        const want = String(fmt || 'auto').toLowerCase();
+        const autoTarget = (canvas.width * canvas.height) >= 16384 ? 'avif' : 'png';
+        const target = want === 'auto' ? autoTarget : want;
+        const mime = 'image/' + Utils.resolveImageFormat(target);
+        let out = canvas.toDataURL(mime, mime === 'image/png' ? undefined : Utils.imageQuality(quality));
+        if (target === 'avif' && out.indexOf('data:image/avif') !== 0) {
+            const conv = Utils.imageToDataUrlSync(out, 'avif', quality);
+            if (conv) return conv;
+        } else if (target === 'webp' && out.indexOf('data:image/webp') !== 0) {
+            const conv = Utils.imageToDataUrlSync(out, 'webp', quality);
+            if (conv) return conv;
+        } else if (target === 'jpeg' && out.indexOf('data:image/jpeg') !== 0) {
+            const conv = Utils.imageToDataUrlSync(out, 'jpeg', quality);
+            if (conv) return conv;
+        }
+        return out;
+    },
+
+    /**
      * 通用图片压缩函数：将 base64 data URL 压缩到指定最大尺寸
      * @param {string} dataUrl - 图片的 base64 data URL
      * @param {number} maxSize - 最大宽或高（px），默认 200
@@ -89,10 +177,16 @@ const Utils = {
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
             ctx.drawImage(img, 0, 0, w, h);
-            // 检测是否有透明通道 → 用 PNG 保留透明，否则用 JPEG 更小
-            const hasAlpha = dataUrl.includes('image/png') || dataUrl.includes('image/webp');
-            const mime = hasAlpha ? 'image/png' : 'image/jpeg';
-            const compressed = canvas.toDataURL(mime, hasAlpha ? undefined : quality);
+            // 检测原图格式：AVIF/WebP 保持原格式压缩（更小），PNG/透明用 PNG，其余用 JPEG
+            const srcMime = (dataUrl.match(/^data:image\/([a-z0-9.+-]+);/) || [])[1] || '';
+            const hasAlpha = srcMime === 'png' || srcMime === 'webp' || srcMime === 'avif' || srcMime === 'gif';
+            let compressed;
+            if (srcMime === 'avif' || srcMime === 'webp') {
+                compressed = Utils.finalImageDataUrl(canvas, srcMime, quality * 100);
+            } else {
+                const mime = hasAlpha ? 'image/png' : 'image/jpeg';
+                compressed = canvas.toDataURL(mime, mime === 'image/png' ? undefined : quality);
+            }
             callback(compressed);
         };
         img.onerror = () => callback(dataUrl); // 加载失败时返回原数据
@@ -4597,7 +4691,8 @@ sidebarTop: {
                 // 输出（按用途）
                 output: 'square',    // square | original
                 outputSize: 64,      // square 边长
-                outputFormat: 'png', // png | svg | url
+                outputFormat: 'auto', // auto | avif | webp | png | jpeg
+                outputQuality: 85,   // avif/webp/jpeg 输出质量 1-100
                 // SVG 直接文本
                 svgText: '',
                 // url 模式
@@ -6015,7 +6110,7 @@ sidebarTop: {
             ctx.outputSizeH = 600;
             ctx.aspectRatio = 'output';    // 默认与输出尺寸比例一致（竖向）
             ctx.lockRatio = true;
-            ctx.outputFormat = 'png';
+            ctx.outputFormat = 'auto';
             ctx.svgText = '';
             ctx.urlValue = '';
             ctx.rotation = 0;
@@ -6106,7 +6201,7 @@ sidebarTop: {
             ctx.outputSizeH = 600;
             ctx.aspectRatio = 'output';    // 默认与输出尺寸比例一致（竖向）
             ctx.lockRatio = true;
-            ctx.outputFormat = 'png';
+            ctx.outputFormat = 'auto';
             ctx.svgText = '';
             ctx.urlValue = '';
             ctx.rotation = 0;
@@ -6314,6 +6409,8 @@ sidebarTop: {
                         ie.rotation = r.rotation || 0; ie.bgColor = r.bgColor || 'transparent';
                         ie.shape = r.shape || 'square'; ie.outputSize = r.outputSize || cfg.outputSize;
                         ie.iconOpacity = r.iconOpacity != null ? r.iconOpacity : 100;
+                        if (r.outputFormat) ie.outputFormat = r.outputFormat;
+                        if (r.outputQuality != null) ie.outputQuality = r.outputQuality;
                         ie.cropInit = true; ie._restoreEdit = null;
                     }
                 };
@@ -6407,6 +6504,8 @@ sidebarTop: {
                         ie.rotation = r.rotation || 0; ie.bgColor = r.bgColor || 'transparent';
                         ie.shape = r.shape || 'square'; ie.outputSize = r.outputSize || 64;
                         ie.iconOpacity = r.iconOpacity != null ? r.iconOpacity : 100;
+                        if (r.outputFormat) ie.outputFormat = r.outputFormat;
+                        if (r.outputQuality != null) ie.outputQuality = r.outputQuality;
                         ie.cropInit = true; ie._restoreEdit = null;
                     }
                 };
@@ -6866,6 +6965,8 @@ sidebarTop: {
                         ie.shape = r.shape || 'square';
                         ie.outputSize = r.outputSize || 64;
                         ie.iconOpacity = r.iconOpacity != null ? r.iconOpacity : 100;
+                        if (r.outputFormat) ie.outputFormat = r.outputFormat;
+                        if (r.outputQuality != null) ie.outputQuality = r.outputQuality;
                         ie.cropInit = true;
                         ie._restoreEdit = null;
                     }
@@ -7140,9 +7241,10 @@ sidebarTop: {
             canvas.width = size;
             canvas.height = size;
             const iconAlpha = clampVal((ie.iconOpacity != null ? ie.iconOpacity : 100), 0, 100) / 100;
+            const outMime = Utils.resolveImageMime(ie.outputFormat || 'auto');
             const bgColor = ie.bgColor || 'transparent';
-            if (bgColor !== 'transparent') {
-                ctx2d.fillStyle = bgColor;
+            if (bgColor !== 'transparent' || outMime === 'image/jpeg') {
+                ctx2d.fillStyle = bgColor !== 'transparent' ? bgColor : '#ffffff';
                 ctx2d.fillRect(0, 0, size, size);
             }
             const img = ie._imgEl;
@@ -7202,7 +7304,7 @@ sidebarTop: {
                 ctx2d.drawImage(rc, 0, 0);
                 ctx2d.globalCompositeOperation = 'source-over';
             }
-            return canvas.toDataURL('image/png');
+            return Utils.finalImageDataUrl(canvas, ie.outputFormat, ie.outputQuality);
         };
 
         // 图标编辑器：保存
@@ -7259,6 +7361,8 @@ sidebarTop: {
                     rotation: ie.rotation || 0,
                     bgColor: ie.bgColor || 'transparent',
                     outputSize: ie.outputSize || 64,
+                    outputFormat: ie.outputFormat || 'auto',
+                    outputQuality: ie.outputQuality != null ? ie.outputQuality : 85,
                     shape: ie.shape || 'square',
                     iconOpacity: ie.iconOpacity != null ? ie.iconOpacity : 100
                 };
@@ -7279,7 +7383,8 @@ sidebarTop: {
                             imgScale: ie.imgScale, imgTranslateX: ie.imgTranslateX, imgTranslateY: ie.imgTranslateY,
                             cropX: ie.cropX, cropY: ie.cropY, cropW: ie.cropW, cropH: ie.cropH,
                             rotation: ie.rotation || 0, bgColor: ie.bgColor || 'transparent',
-                            outputSize: ie.outputSize || 64, shape: ie.shape || 'square',
+                            outputSize: ie.outputSize || 64, outputFormat: ie.outputFormat || 'auto',
+                            outputQuality: ie.outputQuality != null ? ie.outputQuality : 85, shape: ie.shape || 'square',
                             iconOpacity: ie.iconOpacity != null ? ie.iconOpacity : 100
                         } : null;
                     } else if (ie.tab === 'text') {
@@ -7369,7 +7474,7 @@ sidebarTop: {
             ctx.imgSize = { w: 0, h: 0 };
             ctx.output = 'square';
             ctx.outputSize = 64;
-            ctx.outputFormat = 'png';
+            ctx.outputFormat = 'auto';
             ctx.svgText = '';
             ctx.urlValue = '';
             ctx.rotation = 0;
@@ -10756,7 +10861,7 @@ sidebarTop: {
             ctx.outputSizeH = _sel[1];
             ctx.aspectRatio = 'output';    // 默认与输出尺寸比例一致（顶部/底部/页脚）
             ctx.lockRatio = true;
-            ctx.outputFormat = 'png';
+            ctx.outputFormat = 'auto';
             ctx.svgText = '';
             ctx.urlValue = '';
             ctx.rotation = 0;
@@ -11683,7 +11788,7 @@ sidebarTop: {
             ctx.outputSizeH = _adH;                      // 单格高
             ctx.aspectRatio = 'output';               // 默认与输出尺寸比例一致
             ctx.lockRatio = true;                      // 默认锁定比例
-            ctx.outputFormat = 'png';
+            ctx.outputFormat = 'auto';
             ctx.svgText = '';
             ctx.urlValue = '';
             ctx.rotation = 0;
@@ -11952,7 +12057,7 @@ sidebarTop: {
             ctx.imgSize = { w: 0, h: 0 };
             ctx.output = 'square';
             ctx.outputSize = 64;
-            ctx.outputFormat = 'png';
+            ctx.outputFormat = 'auto';
             ctx.svgText = '';
             ctx.urlValue = '';
             ctx.rotation = 0;
@@ -12011,7 +12116,7 @@ sidebarTop: {
             ctx.imgSize = { w: 0, h: 0 };
             ctx.output = 'original';    // Logo 保持原图比例更合适
             ctx.outputSize = 200;
-            ctx.outputFormat = 'png';
+            ctx.outputFormat = 'auto';
             ctx.svgText = '';
             ctx.urlValue = '';
             ctx.rotation = 0;
@@ -12072,7 +12177,7 @@ sidebarTop: {
             ctx.imgSize = { w: 0, h: 0 };
             ctx.output = 'square';
             ctx.outputSize = 64;
-            ctx.outputFormat = 'png';
+            ctx.outputFormat = 'auto';
             ctx.svgText = '';
             ctx.urlValue = '';
             ctx.rotation = 0;
@@ -12108,7 +12213,7 @@ sidebarTop: {
             ctx._imgEl = null;
             ctx.output = 'square';
             ctx.outputSize = 128;
-            ctx.outputFormat = 'png';
+            ctx.outputFormat = 'auto';
             ctx.svgText = '';
             ctx.urlValue = '';
             ctx.rotation = 0;
@@ -12319,6 +12424,7 @@ sidebarTop: {
                         ctx.hLogoRotation = (_re.rotation != null) ? _re.rotation : 0;
                         if (_re.outputSize != null) ctx.outputSize = _re.outputSize;
                         if (_re.outputFormat) ctx.outputFormat = _re.outputFormat;
+                        if (_re.outputQuality != null) ctx.outputQuality = _re.outputQuality;
                         ctx._restoreEdit = null;
                     }
                 } else {
@@ -13632,6 +13738,11 @@ sidebarTop: {
             } catch (e) {}
         };
 
+        // 按所选输出格式生成 dataURL（PNG 忽略质量，其余按 quality 1-100）
+        const outputDataURL = (cvs, fmt, quality) => {
+            return Utils.finalImageDataUrl(cvs, fmt, quality);
+        };
+
         // 样式编辑模式：保存圆形/方形裁剪结果
         // 导出内容：正方形画布，仅保留框内可见内容
         const applyStyleSave = () => {
@@ -13675,7 +13786,7 @@ sidebarTop: {
                                 c.save(); c.translate(C/2, C/2); c.rotate(rotation * Math.PI / 180);
                                 c.drawImage(img, -C/2, -C/2, C, C); c.restore();
                             } else { c.drawImage(img, 0, 0, C, C); }
-                            doSave(cvs.toDataURL('image/png'));
+                            doSave(outputDataURL(cvs, ctx.outputFormat, ctx.outputQuality));
                         } catch(e) { showToast('Canvas错误: ' + e.message, 'error'); }
                     };
                     img.onerror = () => { showToast('加载原图失败，请重试或重新选择图标', 'warning'); };
@@ -13730,7 +13841,7 @@ sidebarTop: {
                     c.drawImage(imgEl, sx, sy, sw, sh, 0, 0, outSize, outSize);
                 }
                 if (isCircle) { c.restore(); }
-                const dataURL = canvas.toDataURL('image/png');
+                const dataURL = outputDataURL(canvas, ctx.outputFormat, ctx.outputQuality);
                 doSave(dataURL);
             } catch(e) {
                 showToast('Canvas错误: ' + e.message, 'error');
@@ -13809,7 +13920,7 @@ sidebarTop: {
             const cctx = canvas.getContext('2d');
             cctx.imageSmoothingEnabled = true;
             cctx.imageSmoothingQuality = 'high';
-            const mime = ctx.outputFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
+            const mime = Utils.resolveImageMime(ctx.outputFormat || 'auto');
             if (mime === 'image/jpeg') { cctx.fillStyle = '#ffffff'; cctx.fillRect(0, 0, outW, outH); }
             // 广告位背景色：透明(默认) / 纯色 / 渐变
             const adBg = ctx.background;
@@ -13860,7 +13971,7 @@ sidebarTop: {
             cctx.globalAlpha = 1;
             if (ctx.shape === 'round') applyRoundClip(canvas);
             if (ctx.shape === 'circle') applyCircleClip(canvas);
-            return canvas.toDataURL(mime, 0.92);
+            return Utils.finalImageDataUrl(canvas, ctx.outputFormat, ctx.outputQuality);
         };
 
         const applyLogoCrop = () => {
@@ -14125,7 +14236,7 @@ sidebarTop: {
                 cctx.translate(-dispW / 2, -dispH / 2);
                 cctx.drawImage(img, 0, 0, dispW, dispH);
                 cctx.restore();
-                const mime = ctx.outputFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
+                const mime = Utils.resolveImageMime(ctx.outputFormat || 'auto');
                 // 原图（未截取）+ 编辑参数快照一并写入，方便日后重新调整
                 const _src = ctx.sourceImage;
                 const _edit = {
@@ -14137,10 +14248,11 @@ sidebarTop: {
                     rotation: ctx.hLogoRotation,
                     outputSize: outSize,
                     outputFormat: ctx.outputFormat,
+                    outputQuality: ctx.outputQuality,
                     shape: ctx.shape || 'square'
                 };
                 if (ctx.shape === 'round') applyRoundClip(canvas);
-                writeBack(canvas.toDataURL(mime, 0.92), { src: _src, edit: _edit });
+                writeBack(Utils.finalImageDataUrl(canvas, ctx.outputFormat, ctx.outputQuality), { src: _src, edit: _edit });
                 showToast(`已生成 ${outSize}×${outSize} ` + label, 'success');
                 closeLogoCropper();
                 return;
@@ -14201,9 +14313,9 @@ sidebarTop: {
                 } else {
                     cctx.drawImage(img, sx, sy, sw, sh, 0, 0, outW, outH);
                 }
-                const mime = ctx.outputFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
+                const mime = Utils.resolveImageMime(ctx.outputFormat || 'auto');
                 if (ctx.shape === 'round') applyRoundClip(canvas);
-                const dataURL = canvas.toDataURL(mime, 0.92);
+                const dataURL = Utils.finalImageDataUrl(canvas, ctx.outputFormat, ctx.outputQuality);
                 editForm.category.iconShape = ctx.shape || 'square';
                 editForm.category.icon = dataURL;
                 showToast(`已生成 ${outW}×${outH} 图标`, 'success');
@@ -14262,9 +14374,9 @@ sidebarTop: {
             } else {
                 cctx.drawImage(img, sx, sy, sw, sh, 0, 0, outW, outH);
             }
-            const mime = ctx.outputFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
+            const mime = Utils.resolveImageMime(ctx.outputFormat || 'auto');
             if (ctx.shape === 'round') applyRoundClip(canvas);
-            const dataURL = canvas.toDataURL(mime, 0.92);
+            const dataURL = Utils.finalImageDataUrl(canvas, ctx.outputFormat, ctx.outputQuality);
             targetObj.logoShape = ctx.shape || 'square';
             targetObj.logo = dataURL;
             // 直接持久化（autoSave 有 500ms 延迟，刷新可能丢失）
