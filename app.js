@@ -14195,10 +14195,10 @@ sidebarTop: {
                         Math.abs(ctx.vpCrop.w - c0.w) < 0.5 && Math.abs(ctx.vpCrop.h - c0.h) < 0.5 &&
                         Math.abs((ctx.imgScale || 1) - 1) < 0.001 && Math.abs(ctx.rotation || 0) < 0.01 &&
                         Math.abs((ctx.imgTranslateX || 0) - (p0.x || 0)) < 0.5 && Math.abs((ctx.imgTranslateY || 0) - (p0.y || 0)) < 0.5;
-                    const noBg = !ctx.background || ctx.background === 'transparent';
                     const fullOpacity = ctx.iconOpacity == null || ctx.iconOpacity >= 100;
                     const square = ctx.shape !== 'round';
-                    if (untouched && noBg && fullOpacity && square && ctx.sourceImage) {
+                    // 背景已由预览/站点广告格独立渲染，因此带背景也可保留原始动画图
+                    if (untouched && fullOpacity && square && ctx.sourceImage) {
                         if (!slot.sourceImage && ctx.sourceImage) slot.sourceImage = ctx.sourceImage;
                         slot.image = ctx.sourceImage;
                         slot.type = 'image';
