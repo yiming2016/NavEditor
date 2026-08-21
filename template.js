@@ -2873,7 +2873,7 @@ const TEMPLATE = `
                             <!-- 背景色层 -->
                             <div v-if="editForm.iconEditor.bgColor && editForm.iconEditor.bgColor !== 'transparent'"
                                  style="position:absolute;inset:0;z-index:1"
-                                 :style="{ background: editForm.iconEditor.bgColor }"></div>
+                                 :style="{ background: editForm.iconEditor.bgColor, opacity: (editForm.iconEditor.bgOpacity != null ? editForm.iconEditor.bgOpacity : 100) / 100 }"></div>
                             <!-- 图片层 -->
                             <div v-if="editForm.iconEditor.sourceImage" style="position:absolute;z-index:2"
                                  :style="{
@@ -3005,6 +3005,12 @@ const TEMPLATE = `
                                 <button class="color-swatch" :class="{ active: editForm.iconEditor.bgColor === '#597ef7' }" @click="editForm.iconEditor.bgColor = '#597ef7'" title="蓝色" style="background:#597ef7"></button>
                                 <button class="color-swatch" :class="{ active: editForm.iconEditor.bgColor === '#b37feb' }" @click="editForm.iconEditor.bgColor = '#b37feb'" title="紫色" style="background:#b37feb"></button>
                                 <button class="color-swatch ie-custom-color-btn" :class="{ active: isCustomIconBg('image') }" title="自定义颜色（含不透明度）" @click="openIconBgColorPicker" style="background:conic-gradient(red,yellow,lime,aqua,blue,magenta,red);border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.15);cursor:pointer"></button>
+                            </div>
+                            <div class="ie-control-row">
+                                <span class="ie-label">背景不透明度：</span>
+                                <input type="number" class="form-input ie-num-input" :value="editForm.iconEditor.bgOpacity != null ? editForm.iconEditor.bgOpacity : 100" min="0" max="100" step="1" @change="let o = Math.max(0, Math.min(100, Number($event.target.value) || 0)); editForm.iconEditor.bgOpacity = o;" @wheel.prevent="onIconEditorBgOpacityWheel">
+                                <span class="ie-unit">%</span>
+                                <input type="range" min="0" max="100" class="ie-range-slider" :value="editForm.iconEditor.bgOpacity != null ? editForm.iconEditor.bgOpacity : 100" @input="editForm.iconEditor.bgOpacity = Number($event.target.value);" @wheel.prevent="onIconEditorBgOpacityWheel">
                             </div>
                             <div class="ie-control-row">
                                 <span class="ie-label">格式：</span>
@@ -3288,6 +3294,12 @@ const TEMPLATE = `
                                         <button class="color-swatch" :class="{ active: editForm.imageCropper.hLogoBg === '#597ef7' }" @click="editForm.imageCropper.hLogoBg = '#597ef7'" title="蓝色" style="background:#597ef7"></button>
                                         <button class="color-swatch" :class="{ active: editForm.imageCropper.hLogoBg === '#b37feb' }" @click="editForm.imageCropper.hLogoBg = '#b37feb'" title="紫色" style="background:#b37feb"></button>
                                         <button class="color-swatch ie-custom-color-btn" :class="{ active: editForm.imageCropper.hLogoBg && editForm.imageCropper.hLogoBg.startsWith('#') }" title="自定义颜色（含不透明度）" @click="openColorPicker({ value: editForm.imageCropper.hLogoBg, onChange: (val) => { editForm.imageCropper.hLogoBg = val; updateCropPreview(); }, onConfirm: (val) => { editForm.imageCropper.hLogoBg = val; editForm.imageCropper.hLogoCustomBg = val; updateCropPreview(); } })" style="background:conic-gradient(red,yellow,lime,aqua,blue,magenta,red);border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.15);cursor:pointer"></button>
+                                    </div>
+                                    <div class="ie-control-row">
+                                        <span class="ie-label">背景不透明度：</span>
+                                        <input type="number" class="form-input ie-num-input" :value="editForm.imageCropper.bgOpacity != null ? editForm.imageCropper.bgOpacity : 100" min="0" max="100" step="1" @change="let o = Math.max(0, Math.min(100, Number($event.target.value) || 0)); editForm.imageCropper.bgOpacity = o; updateCropPreview()" @wheel.prevent="onImageCropperBgOpacityWheel">
+                                        <span class="ie-unit">%</span>
+                                        <input type="range" min="0" max="100" class="ie-range-slider" :value="editForm.imageCropper.bgOpacity != null ? editForm.imageCropper.bgOpacity : 100" @input="editForm.imageCropper.bgOpacity = Number($event.target.value); updateCropPreview()" @wheel.prevent="onImageCropperBgOpacityWheel">
                                     </div>
                                     <div class="ie-control-row">
                                         <span class="ie-label">格式：</span>
@@ -3618,6 +3630,12 @@ const TEMPLATE = `
                                                 :style="{ background: editForm.imageCropper.hLogoCustomBg || '#4f46e5' }"
                                                 @click="openColorPicker()"></button>
                                     </div>
+                                    <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+                                        <span class="icp-label" style="margin:0;white-space:nowrap">背景不透明度</span>
+                                        <input type="number" class="form-input" min="0" max="100" step="1" :value="editForm.imageCropper.bgOpacity != null ? editForm.imageCropper.bgOpacity : 100" style="width:60px;text-align:center;padding:4px" @change="let o = Math.max(0, Math.min(100, Number($event.target.value) || 0)); editForm.imageCropper.bgOpacity = o; updateCropPreview()" @wheel.prevent="onImageCropperBgOpacityWheel">
+                                        <span style="font-size:11px;color:var(--text-muted)">%</span>
+                                        <input type="range" min="0" max="100" step="1" :value="editForm.imageCropper.bgOpacity != null ? editForm.imageCropper.bgOpacity : 100" style="flex:1;height:16px;cursor:pointer;accent-color:#597ef7" @input="editForm.imageCropper.bgOpacity = Number($event.target.value); updateCropPreview()" @wheel.prevent="onImageCropperBgOpacityWheel">
+                                    </div>
                                 </div>
                                 <!-- 操作按钮：更换图片 / 删除图片 -->
                                 <div class="icp-section sb-img-actions">
@@ -3651,7 +3669,7 @@ const TEMPLATE = `
                                          width: icpPreviewDims.w + 'px',
                                          height: icpPreviewDims.h + 'px',
                                          borderRadius: editForm.imageCropper.shape === 'round' ? Math.round(Math.min(icpPreviewDims.w, icpPreviewDims.h) * 0.16) + 'px' : '',
-                                         background: editForm.imageCropper.target === 'adSlot' ? (currentAdSlotBackgroundCss || '') : ''
+                                         background: editForm.imageCropper.target === 'adSlot' ? ((editForm.imageCropper.bgOpacity != null && editForm.imageCropper.bgOpacity < 100) ? '' : (currentAdSlotBackgroundCss || '')) : ''
                                      }">
                                     <canvas v-if="editForm.imageCropper.sourceImage || (editForm.imageCropper.target === 'site' && editForm.site.logo) || editForm.imageCropper.target === 'sidebarBackground' || editForm.imageCropper.target === 'sidebarBackgroundCollapsed'"
                                             class="icp-preview-canvas"
@@ -3782,7 +3800,14 @@ const TEMPLATE = `
                                     <div class="adslot-bg-presets">
                                         <button class="adslot-bg-chip" type="button" :class="{active: currentAdSlotBackground === 'transparent'}" @click="setAdSlotBackground('transparent')" title="透明" style="background:repeating-conic-gradient(#e5e5e5 0% 25%, #fff 0% 50%) 0 0 / 16px 16px"></button>
                                         <button class="adslot-bg-chip" type="button" v-for="c in ['#ff5252','#ffab40','#ffd740','#69f0ae','#40c4ff','#448aff','#7c4dff']" :key="c" :class="{active: currentAdSlotBackground === c}" @click="setAdSlotBackground(c)" :style="{background:c}" :title="c"></button>
-                                        <div class="adslot-bg-custom-wrap">
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+                                        <span style="font-size:12px;color:var(--text-muted);white-space:nowrap">背景不透明度</span>
+                                        <input type="number" class="form-input" min="0" max="100" step="1" :value="editForm.imageCropper.bgOpacity != null ? editForm.imageCropper.bgOpacity : 100" style="width:60px;text-align:center;padding:4px" @change="let o = Math.max(0, Math.min(100, Number($event.target.value) || 0)); editForm.imageCropper.bgOpacity = o; updateCropPreview()" @wheel.prevent="onImageCropperBgOpacityWheel">
+                                        <span style="font-size:11px;color:var(--text-muted)">%</span>
+                                        <input type="range" min="0" max="100" step="1" :value="editForm.imageCropper.bgOpacity != null ? editForm.imageCropper.bgOpacity : 100" style="flex:1;height:16px;cursor:pointer;accent-color:#597ef7" @input="editForm.imageCropper.bgOpacity = Number($event.target.value); updateCropPreview()" @wheel.prevent="onImageCropperBgOpacityWheel">
+                                    </div>
+                                    <div class="adslot-bg-custom-wrap">
                                         <button class="adslot-bg-chip adslot-bg-chip--custom" type="button" :class="{active: currentAdSlotBackground && currentAdSlotBackground[0] === '#' && !['#ff5252','#ffab40','#ffd740','#69f0ae','#40c4ff','#448aff','#7c4dff'].includes(currentAdSlotBackground)}" @click.stop="openCustomColorModal" title="自定义颜色" style="background:conic-gradient(from 0deg, #ff5252, #ffab40, #ffd740, #69f0ae, #40c4ff, #448aff, #7c4dff, #ff5252)"></button>
                                         <!-- 自定义颜色浮层（在按钮位置弹出，非全屏弹窗） -->
                                         <div v-if="adSlotBgPopover" class="adslot-bg-popover" @click.stop>
@@ -3824,7 +3849,6 @@ const TEMPLATE = `
                                         </div>
                                     </div>
                                 </div>
-                            </div>
 
                         </div>
                     </div>
@@ -3910,6 +3934,12 @@ const TEMPLATE = `
                                         <button class="btn btn-sm color-swatch" :class="{ active: editForm.iconEditor.bgColor === '#597ef7' }" @click="editForm.iconEditor.bgColor = '#597ef7'" title="蓝色" style="width:20px;height:20px;padding:0;border-radius:50%;background:#597ef7"></button>
                                         <button class="btn btn-sm color-swatch" :class="{ active: editForm.iconEditor.bgColor === '#b37feb' }" @click="editForm.iconEditor.bgColor = '#b37feb'" title="紫色" style="width:20px;height:20px;padding:0;border-radius:50%;background:#b37feb"></button>
                                         <input type="color" v-model="editForm.iconEditor.customBgColor" @input="editForm.iconEditor.bgColor = editForm.iconEditor.customBgColor" @change="editForm.iconEditor.bgColor = editForm.iconEditor.customBgColor" title="自定义" style="width:20px;height:20px;padding:0;border:none;border-radius:50%;cursor:pointer;background:conic-gradient(red,yellow,lime,aqua,blue,magenta,red)">
+                                    </div>
+                                    <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:8px">
+                                        <span style="font-size:12px;color:var(--text-secondary)">背景不透明度：</span>
+                                        <input type="number" class="form-input ie-num-input" :value="editForm.iconEditor.bgOpacity != null ? editForm.iconEditor.bgOpacity : 100" min="0" max="100" step="1" style="width:56px" @change="let o = Math.max(0, Math.min(100, Number($event.target.value) || 0)); editForm.iconEditor.bgOpacity = o;" @wheel.prevent="onIconEditorBgOpacityWheel">
+                                        <span style="font-size:12px;color:var(--text-secondary)">%</span>
+                                        <input type="range" min="0" max="100" class="ie-range-slider" :value="editForm.iconEditor.bgOpacity != null ? editForm.iconEditor.bgOpacity : 100" style="max-width:140px" @input="editForm.iconEditor.bgOpacity = Number($event.target.value);" @wheel.prevent="onIconEditorBgOpacityWheel">
                                     </div>
                                     <div style="display:flex;align-items:center;justify-content:center;gap:6px">
                                         <span style="font-size:12px;color:var(--text-secondary)">输出：</span>

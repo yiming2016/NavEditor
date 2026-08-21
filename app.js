@@ -4713,6 +4713,7 @@ sidebarTop: {
                 imgTranslateY: 0,         // 图片平移 Y (px)
                 imgScale: 1,              // 图片缩放倍数
                 iconOpacity: 100,         // 图片不透明度（%）
+                bgOpacity: 100,           // 背景不透明度（%）
                 viewportSize: 280,        // 固定视口尺寸 (px)
                 circleDragState: { active: false, startX: 0, startY: 0, startTx: 0, startTy: 0 },
                 // 视口模式下的可拖拽裁剪框（方形模式/adSlot 使用）
@@ -6411,6 +6412,7 @@ sidebarTop: {
                         ie.iconOpacity = r.iconOpacity != null ? r.iconOpacity : 100;
                         if (r.outputFormat) ie.outputFormat = r.outputFormat;
                         if (r.outputQuality != null) ie.outputQuality = r.outputQuality;
+                        if (r.bgOpacity != null) ie.bgOpacity = r.bgOpacity;
                         ie.cropInit = true; ie._restoreEdit = null;
                     }
                 };
@@ -6506,6 +6508,7 @@ sidebarTop: {
                         ie.iconOpacity = r.iconOpacity != null ? r.iconOpacity : 100;
                         if (r.outputFormat) ie.outputFormat = r.outputFormat;
                         if (r.outputQuality != null) ie.outputQuality = r.outputQuality;
+                        if (r.bgOpacity != null) ie.bgOpacity = r.bgOpacity;
                         ie.cropInit = true; ie._restoreEdit = null;
                     }
                 };
@@ -6967,6 +6970,7 @@ sidebarTop: {
                         ie.iconOpacity = r.iconOpacity != null ? r.iconOpacity : 100;
                         if (r.outputFormat) ie.outputFormat = r.outputFormat;
                         if (r.outputQuality != null) ie.outputQuality = r.outputQuality;
+                        if (r.bgOpacity != null) ie.bgOpacity = r.bgOpacity;
                         ie.cropInit = true;
                         ie._restoreEdit = null;
                     }
@@ -7243,9 +7247,12 @@ sidebarTop: {
             const iconAlpha = clampVal((ie.iconOpacity != null ? ie.iconOpacity : 100), 0, 100) / 100;
             const outMime = Utils.resolveImageMime(ie.outputFormat || 'auto');
             const bgColor = ie.bgColor || 'transparent';
+            const bgAlpha = clampVal((ie.bgOpacity != null ? ie.bgOpacity : 100), 0, 100) / 100;
             if (bgColor !== 'transparent' || outMime === 'image/jpeg') {
                 ctx2d.fillStyle = bgColor !== 'transparent' ? bgColor : '#ffffff';
+                ctx2d.globalAlpha = bgColor !== 'transparent' ? bgAlpha : 1;
                 ctx2d.fillRect(0, 0, size, size);
+                ctx2d.globalAlpha = 1;
             }
             const img = ie._imgEl;
             if (!img) return null;
@@ -7363,6 +7370,7 @@ sidebarTop: {
                     outputSize: ie.outputSize || 64,
                     outputFormat: ie.outputFormat || 'auto',
                     outputQuality: ie.outputQuality != null ? ie.outputQuality : 85,
+                    bgOpacity: ie.bgOpacity != null ? ie.bgOpacity : 100,
                     shape: ie.shape || 'square',
                     iconOpacity: ie.iconOpacity != null ? ie.iconOpacity : 100
                 };
@@ -7385,6 +7393,7 @@ sidebarTop: {
                             rotation: ie.rotation || 0, bgColor: ie.bgColor || 'transparent',
                             outputSize: ie.outputSize || 64, outputFormat: ie.outputFormat || 'auto',
                             outputQuality: ie.outputQuality != null ? ie.outputQuality : 85, shape: ie.shape || 'square',
+                            bgOpacity: ie.bgOpacity != null ? ie.bgOpacity : 100,
                             iconOpacity: ie.iconOpacity != null ? ie.iconOpacity : 100
                         } : null;
                     } else if (ie.tab === 'text') {
@@ -12425,6 +12434,7 @@ sidebarTop: {
                         if (_re.outputSize != null) ctx.outputSize = _re.outputSize;
                         if (_re.outputFormat) ctx.outputFormat = _re.outputFormat;
                         if (_re.outputQuality != null) ctx.outputQuality = _re.outputQuality;
+                        if (_re.bgOpacity != null) ctx.bgOpacity = _re.bgOpacity;
                         ctx._restoreEdit = null;
                     }
                 } else {
@@ -13237,6 +13247,23 @@ sidebarTop: {
             updateCropPreview();
         };
 
+        // 图标设置编辑器（浏览器标签/Logo/站点图标）背景不透明度滚轮
+        const onIconEditorBgOpacityWheel = (e) => {
+            e.preventDefault();
+            const ie = editForm.iconEditor;
+            const cur = clampVal(ie.bgOpacity != null ? ie.bgOpacity : 100, 0, 100);
+            ie.bgOpacity = clampVal(cur + (e.deltaY < 0 ? 5 : -5), 0, 100);
+        };
+
+        // 裁剪器（广告位/侧边栏背景等）背景不透明度滚轮
+        const onImageCropperBgOpacityWheel = (e) => {
+            e.preventDefault();
+            const ctx = editForm.imageCropper;
+            const cur = clampVal(ctx.bgOpacity != null ? ctx.bgOpacity : 100, 0, 100);
+            ctx.bgOpacity = clampVal(cur + (e.deltaY < 0 ? 5 : -5), 0, 100);
+            updateCropPreview();
+        };
+
         // 侧边栏顶部 Logo：点击按钮缩放（以图片中心为原点，与滚轮等价）
         const zoomHeaderLogoBtn = (dir) => {
             const ctx = editForm.imageCropper;
@@ -13930,9 +13957,12 @@ sidebarTop: {
             cctx.imageSmoothingQuality = 'high';
             const mime = Utils.resolveImageMime(ctx.outputFormat || 'auto');
             if (mime === 'image/jpeg') { cctx.fillStyle = '#ffffff'; cctx.fillRect(0, 0, outW, outH); }
+            // 背景不透明度（%）作用于背景色/渐变填充
+            const bgAlpha = clampVal((ctx.bgOpacity != null ? ctx.bgOpacity : 100), 0, 100) / 100;
             // 广告位背景色：透明(默认) / 纯色 / 渐变
             const adBg = ctx.background;
             if (adBg && adBg !== 'transparent') {
+                cctx.globalAlpha = bgAlpha;
                 if (adBg === 'gradient') {
                     const grd = cctx.createLinearGradient(0, 0, outW, outH);
                     grd.addColorStop(0, '#ff4d4f');
@@ -13949,13 +13979,16 @@ sidebarTop: {
                     cctx.fillStyle = adBg;
                     cctx.fillRect(0, 0, outW, outH);
                 }
+                cctx.globalAlpha = 1;
             }
             // 侧边栏背景：先填充背景色（裁剪器内"背景"按钮组的字段即 ctx.hLogoBg），再绘制图片
             if (ctx.target === 'sidebarBackground' || ctx.target === 'sidebarBackgroundCollapsed') {
                 const bg = ctx.hLogoBg || 'transparent';
                 if (bg !== 'transparent') {
+                    cctx.globalAlpha = bgAlpha;
                     cctx.fillStyle = bg;
                     cctx.fillRect(0, 0, outW, outH);
+                    cctx.globalAlpha = 1;
                 }
             }
             // 应用图片不透明度（仅影响图片绘制）
@@ -14257,6 +14290,7 @@ sidebarTop: {
                     outputSize: outSize,
                     outputFormat: ctx.outputFormat,
                     outputQuality: ctx.outputQuality,
+                    bgOpacity: ctx.bgOpacity != null ? ctx.bgOpacity : 100,
                     shape: ctx.shape || 'square'
                 };
                 if (ctx.shape === 'round') applyRoundClip(canvas);
@@ -15750,7 +15784,8 @@ sidebarTop: {
             onAlphaPointerDown, onAlphaPointerMove, onAlphaPointerUp, drawAlpha, recomposeColor, clampVal, parseToRgba,
             useEyeDropper,
             hexToRgb,
-            circleZoomIn, circleZoomOut, circleZoomReset, onCircleWheel, onImageCropperRotationWheel, onImageCropperOpacityWheel,
+        circleZoomIn, circleZoomOut, circleZoomReset, onCircleWheel, onImageCropperRotationWheel, onImageCropperOpacityWheel,
+        onIconEditorBgOpacityWheel, onImageCropperBgOpacityWheel,
             unsavedSaveAndRefresh, unsavedDirectRefresh, unsavedCancel, dirty,
             addAccount, editAccount, saveAccount, deleteAccount, selectAccount,
             checkOne, checkAll, connectivityStatus, openAccountProject,
