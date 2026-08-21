@@ -5117,7 +5117,7 @@ sidebarTop: {
                 let css = '';
                 ['left', 'right'].forEach(side => {
                     (a[side] || []).forEach((s, i) => {
-                        if (s.type === 'image' && s.blink && s.blink.enabled) {
+                        if (s.type === 'image' && s.blink) {
                             const dur = Number(s.blink.duration) || 300;
                             const iv = Number(s.blink.interval) || 150;
                             const cyc = dur + iv;
@@ -12996,7 +12996,7 @@ sidebarTop: {
             const ctx = editForm.imageCropper;
             if (!ctx || ctx.target !== 'adSlot' || ctx.adSide == null || ctx.adIdx == null) return '';
             const slot = data.adSlots[ctx.adSide] && data.adSlots[ctx.adSide][ctx.adIdx];
-            if (!slot || !slot.blink || !slot.blink.enabled) return '';
+            if (!slot || !slot.blink) return '';
             return 'ad-blink-' + ctx.adSide + '-' + ctx.adIdx;
         });
         const applyCurrentAdBlinkPreset = (presetKey) => {
