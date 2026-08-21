@@ -11803,6 +11803,8 @@ sidebarTop: {
             ctx.svgText = '';
             ctx.urlValue = '';
             ctx.rotation = 0;
+            // 广告位背景：随槽位保存的背景初始化（透明/纯色/渐变）
+            ctx.background = slot.background || 'transparent';
             // 视口状态初始化
             ctx.imgTranslateX = 0;
             ctx.imgTranslateY = 0;
@@ -12798,12 +12800,40 @@ sidebarTop: {
                     const c = canvas.getContext('2d');
                     c.clearRect(0, 0, outW, outH);
 
+                    // 背景不透明度（%）：作用于背景色/渐变填充
+                    const bgAlpha = clampVal((ctx.bgOpacity != null ? ctx.bgOpacity : 100), 0, 100) / 100;
+                    // 广告位背景：透明(默认) / 纯色 / 渐变（与最终输出一致）
+                    if (ctx.target === 'adSlot') {
+                        const adBg = ctx.background;
+                        if (adBg && adBg !== 'transparent') {
+                            c.save();
+                            c.globalAlpha = bgAlpha;
+                            if (adBg === 'gradient') {
+                                const grd = c.createLinearGradient(0, 0, outW, outH);
+                                grd.addColorStop(0, '#ff4d4f');
+                                grd.addColorStop(0.17, '#ff7a45');
+                                grd.addColorStop(0.33, '#ffec3d');
+                                grd.addColorStop(0.5, '#73d13d');
+                                grd.addColorStop(0.67, '#36cfc9');
+                                grd.addColorStop(0.83, '#40a9ff');
+                                grd.addColorStop(1, '#9254de');
+                                c.fillStyle = grd;
+                            } else {
+                                c.fillStyle = adBg;
+                            }
+                            c.fillRect(0, 0, outW, outH);
+                            c.restore();
+                        }
+                    }
                     // 侧边栏背景：先填充背景色（裁剪器内"背景"按钮组的字段即 ctx.hLogoBg），再绘制图片
                     if (ctx.target === 'sidebarBackground' || ctx.target === 'sidebarBackgroundCollapsed') {
                         const bg = ctx.hLogoBg || 'transparent';
                         if (bg !== 'transparent') {
+                            c.save();
+                            c.globalAlpha = bgAlpha;
                             c.fillStyle = bg;
                             c.fillRect(0, 0, outW, outH);
+                            c.restore();
                         }
                     }
 
@@ -13005,6 +13035,8 @@ sidebarTop: {
                     syncAdSlotBgHsvFromRgb();
                 } catch (e) {}
             }
+            // 同步到裁剪器状态，使输出预览/最终输出立即使用所选背景
+            if (editForm.imageCropper) editForm.imageCropper.background = slot.background || 'transparent';
         };
 
         // 广告位：修改输出宽/高后，重新校正裁剪框比例并刷新预览
