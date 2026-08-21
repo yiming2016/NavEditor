@@ -3547,11 +3547,6 @@ const TEMPLATE = `
                                         <span style="font-size:11px;color:var(--text-muted)">间隔</span>
                                         <input class="form-input" type="number" min="0" v-model.number="currentAdSlotBlink.interval" style="width:60px;padding:4px;font-size:12px"><span style="font-size:11px;color:var(--text-muted)">ms</span>
                                     </div>
-                                    <div style="display:flex;align-items:center;gap:8px">
-                                        <span style="font-size:11px;color:var(--text-muted)">透明度</span>
-                                        <input type="range" min="0" max="1" step="0.05" v-model.number="currentAdSlotBlink.opacity" style="flex:1;height:16px;cursor:pointer;accent-color:#597ef7">
-                                        <input class="form-input" type="number" min="0" max="1" step="0.05" v-model.number="currentAdSlotBlink.opacity" style="width:55px;padding:4px;font-size:12px">
-                                    </div>
                                 </div>
                             </div>
 
@@ -3759,6 +3754,22 @@ const TEMPLATE = `
                                     <span class="icp-angle-text">{{ editForm.imageCropper.rotation }}°</span>
                                     <button class="btn btn-sm icp-btn" @click="editForm.imageCropper.rotation = (editForm.imageCropper.rotation + 90) % 360" title="顺时针 90°"><i class="fas fa-redo-alt"></i></button>
                                     <button class="btn btn-xs icp-btn" v-if="editForm.imageCropper.rotation !== 0" @click="editForm.imageCropper.rotation = 0" style="padding:2px 6px;font-size:11px">重置</button>
+                                </div>
+                            </div>
+
+                            <!-- 不透明度（仅广告位）：仿照浏览器标签图标编辑器 -->
+                            <div class="icp-section" v-if="editForm.imageCropper.target === 'adSlot'">
+                                <label class="icp-label">不透明度</label>
+                                <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+                                    <input type="number" class="form-input" min="0" max="100" step="1"
+                                           :value="editForm.imageCropper.iconOpacity != null ? editForm.imageCropper.iconOpacity : 100"
+                                           style="width:64px;text-align:center;padding:4px"
+                                           @change="let o = Math.max(0, Math.min(100, Number($event.target.value) || 0)); editForm.imageCropper.iconOpacity = o; updateCropPreview()">
+                                    <span style="font-size:11px;color:var(--text-muted)">%</span>
+                                    <input type="range" min="0" max="100" step="1"
+                                           :value="editForm.imageCropper.iconOpacity != null ? editForm.imageCropper.iconOpacity : 100"
+                                           style="flex:1;height:16px;cursor:pointer;accent-color:#597ef7"
+                                           @input="editForm.imageCropper.iconOpacity = Number($event.target.value); updateCropPreview()">
                                 </div>
                             </div>
 
