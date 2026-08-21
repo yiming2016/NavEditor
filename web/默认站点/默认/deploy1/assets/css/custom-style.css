@@ -203,6 +203,12 @@ footer.main-footer .footer-text a:hover {
     }
 }
 
+/* 广告栏响应式：过窄时隐藏，避免横向溢出 */
+@media (max-width: 600px) {
+    .header-big .ad-rail {
+        display: none !important;
+    }
+}
 
 
 
