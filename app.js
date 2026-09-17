@@ -2564,6 +2564,27 @@ var theme = {"ajaxurl":"","addico":"https:\/\/nav.baidu.cn\/wp-content\/themes\/
     });
 </script>
 
+<script>
+    // 侧边栏分类列表滚到边界时拦截滚轮，避免滚动链把事件漏给页面（右侧），
+    // 保证左右两侧滚动完全独立；非边界处保持原生滚动行为
+    (function () {
+        try {
+            var fill = document.querySelector('#sidebar .flex-fill');
+            if (!fill) return;
+            fill.addEventListener('wheel', function (e) {
+                var max = fill.scrollHeight - fill.clientHeight;
+                if (max <= 0) return;
+                var cur = fill.scrollTop;
+                var canDown = cur < max - 0.5;
+                var canUp = cur > 0.5;
+                if ((e.deltaY > 0 && !canDown) || (e.deltaY < 0 && !canUp)) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+        } catch (e) { /* ignore */ }
+    })();
+</script>
+
 
 </body>
 </html>
