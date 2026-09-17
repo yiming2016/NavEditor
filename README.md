@@ -4,6 +4,7 @@
 >
 > 版本 v1.0 · 本地优先 · 一键部署
 >
+> - 下载软件：[GitHub 发行版](https://github.com/yiming2016/NavEditor/releases)
 > - 部署项目：[yiming2016/go](https://github.com/yiming2016/go)
 > - 展示预览：[go.20030803.xyz](https://go.20030803.xyz)
 
@@ -56,9 +57,9 @@ NavEditor 是一个 **Windows 桌面程序**：双击启动本地服务并自动
 
 ### Windows（推荐）
 
-1. 下载并解压 `NavEditor.exe`（Python + PyInstaller 打包，无需安装环境）
+1. 到 [发行版](https://github.com/yiming2016/NavEditor/releases) 下载 `NavEditor-v1.0-win64.zip` 并解压（已包含 exe 与运行所需文件，无需安装环境）
 2. 双击运行，程序自动：
-   - 启动本地服务器（默认端口 `9620`）
+   - 启动本地服务器（默认端口 `9527`，被占用时自动顺延）
    - 打开浏览器进入编辑器
 3. 开始编辑，点击「保存」生成版本与部署文件
 
@@ -76,11 +77,11 @@ python launcher.py
 
 ### 重新打包 exe
 
-```bash
-python -m PyInstaller NavEditor.spec --noconfirm
-```
+双击 `源码/打包.bat` 即可（等价于 `python -m PyInstaller NavEditor.spec --noconfirm`）：
 
-打包产物位于 `dist/NavEditor.exe`，复制到项目根目录即可使用。
+- exe 直接输出到 `软件/NavEditor.exe`
+- 网页文件（`app.js`、`assets/`、`template/` 等）自动同步到 `软件/`
+- `软件/web` 里的站点数据不会被覆盖
 
 ---
 
@@ -116,22 +117,33 @@ python -m PyInstaller NavEditor.spec --noconfirm
 
 ```text
 NavEditor/
-├── launcher.py            # 后端：tkinter 启动器 + 本地 HTTP 服务器 + 存储/部署 API
-├── app.js                 # 前端主逻辑（编辑器、生成器、发布、版本、SEO）
-├── template.js            # 前端模板（Vue 3，无构建）
-├── styles.css             # 前端样式
-├── editor.html            # 编辑器入口页
-├── NavEditor.spec         # PyInstaller 打包配置
-├── lib/                   # Vue 3 / JSZip 等本地库
-├── assets/                # 导航站基础静态资源（模板，参考自 web_tool）
-├── template/              # 页面模板（关于导航 / 网站提交 / 404 / 模块库）
-├── web/                   # 站点与版本数据（本地工作副本）
-│   └── <site>/<version>/
-│       ├── setting        # 版本设置（编辑数据快照 + 同步信息）
-│       └── deploy1/       # 该版本生成的部署文件
-├── password/              # 账号令牌（仅本地，绝不进入部署包）
-├── backups/               # 编辑自动备份
-└── launcher.json          # 启动器配置
+├── 源码/                    # 工程文件（本 Git 仓库：开发、上传 GitHub 用）
+│   ├── launcher.py          # 后端：tkinter 启动器 + 本地 HTTP 服务器 + 存储/部署 API
+│   ├── app.js               # 前端主逻辑（编辑器、生成器、发布、版本、SEO）
+│   ├── template.js          # 前端模板（Vue 3，无构建）
+│   ├── styles.css           # 前端样式
+│   ├── editor.html          # 编辑器入口页
+│   ├── NavEditor.spec       # PyInstaller 打包配置（输出到 软件/）
+│   ├── 打包.bat             # 一键打包：生成 exe 并同步网页文件到 软件/
+│   ├── lib/                 # Vue 3 / JSZip 等本地库
+│   ├── assets/              # 导航站基础静态资源（模板，参考自 web_tool）
+│   ├── template/            # 页面模板（关于导航 / 网站提交 / 404 / 模块库）
+│   └── web/                 # 站点与版本数据（Git 备份副本）
+└── 软件/                    # 打包成品（不进入 Git，双击 NavEditor.exe 运行）
+    ├── NavEditor.exe        # 主程序（由 源码/打包.bat 生成）
+    ├── editor.html          # 以下均为运行所需网页文件（打包时自动同步）
+    ├── app.js / template.js / styles.css
+    ├── assets/ lib/ template/
+    ├── web/                 # 运行时使用的站点与版本数据
+    └── launcher.json        # 启动器配置（端口、密码目录等）
+```
+
+站点与版本数据的目录约定（`web/` 下）：
+
+```text
+web/<site>/<version>/
+├── setting        # 版本设置（编辑数据快照 + 同步信息）
+└── deploy1/       # 该版本生成的部署文件
 ```
 
 ---
@@ -152,7 +164,8 @@ NavEditor/
 
 - 所有站点数据、版本、账号令牌均保存在**本机**（`web/` 与 `password/` 文件夹）
 - 令牌仅用于发布时调用对应平台 API，通过本机后端直连，不会上传到第三方
-- `password/`、`web/`、`backups/`、`deploy_*.zip` 等已加入 `.gitignore`，不会进入 Git 仓库
+- 打包成品（`软件/`、`NavEditor.exe`）与 `launcher.json` 已加入 `.gitignore`，不作为源码提交；软件通过 [发行版](https://github.com/yiming2016/NavEditor/releases) 分发
+- 站点数据同时存在两份：`源码/web`（Git 备份）与 `软件/web`（运行时使用）
 
 ---
 

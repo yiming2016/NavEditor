@@ -3,9 +3,14 @@ build/
 dist/
 __pycache__/
 *.pyc
+NavEditor.exe
+NavEditor_pending.exe
 
 # 运行日志
 launcher_startup.log
+
+# 本机启动器配置（含本机路径，打包成品随发行版分发）
+launcher.json
 
 # 浏览器自动化临时目录（Playwright 等）
 .playwright-cli/

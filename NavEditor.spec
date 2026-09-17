@@ -24,7 +24,8 @@ exe = EXE(
     a.datas,
     [],
     name='NavEditor',
-    distpath='.',
+    # 打包成品直接输出到「软件」文件夹（与源码分离；SPECPATH 为本 spec 所在目录）
+    distpath=os.path.abspath(os.path.join(SPECPATH, '..', '软件')),
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
