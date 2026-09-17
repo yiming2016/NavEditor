@@ -77,7 +77,7 @@ python launcher.py
 
 ### 重新打包 exe
 
-双击 `源码/打包.bat` 即可（等价于 `python -m PyInstaller NavEditor.spec --noconfirm`）：
+双击 `源码/打包.bat` 即可（脚本内部执行 `python -m PyInstaller NavEditor.spec --noconfirm --distpath "..\软件"`，再把网页文件同步过去）：
 
 - exe 直接输出到 `软件/NavEditor.exe`
 - 网页文件（`app.js`、`assets/`、`template/` 等）自动同步到 `软件/`

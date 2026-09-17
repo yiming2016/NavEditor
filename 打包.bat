@@ -1,25 +1,25 @@
 @echo off
-chcp 65001 >nul
+chcp 936 >nul
 cd /d "%~dp0"
 
+set "DEST=%~dp0..\Èí¼ş"
+if not exist "%DEST%" mkdir "%DEST%"
+
 echo ============================================
-echo   NavEditor ä¸€é”®æ‰“åŒ…ï¼šæºç  -^> è½¯ä»¶
+echo   NavEditor Ò»¼ü´ò°ü£ºÔ´Âëµ½Èí¼ş
 echo ============================================
 echo.
-echo [1/3] ç”Ÿæˆ NavEditor.exe åˆ° ..\è½¯ä»¶ ...
-python -m PyInstaller NavEditor.spec --noconfirm
+echo [1/3] Éú³É NavEditor.exe µ½ ..\Èí¼ş ...
+python -m PyInstaller NavEditor.spec --noconfirm --distpath "%DEST%"
 if errorlevel 1 (
     echo.
-    echo æ‰“åŒ…å¤±è´¥ï¼Œè¯·æ£€æŸ¥ä¸Šé¢çš„é”™è¯¯ä¿¡æ¯ã€‚
+    echo ´ò°üÊ§°Ü£¬Çë¼ì²éÉÏÃæµÄ´íÎóĞÅÏ¢¡£
     pause
     exit /b 1
 )
 
 echo.
-echo [2/3] åŒæ­¥ç½‘é¡µæ–‡ä»¶åˆ° ..\è½¯ä»¶ ...
-set "DEST=%~dp0..\è½¯ä»¶"
-if not exist "%DEST%" mkdir "%DEST%"
-
+echo [2/3] Í¬²½ÍøÒ³ÎÄ¼şµ½ ..\Èí¼ş ...
 for %%F in (editor.html app.js template.js styles.css app_icon.ico .about_template .assetsignore) do (
     if exist "%%F" copy /Y "%%F" "%DEST%\" >nul
 )
@@ -28,8 +28,8 @@ for %%D in (assets lib template) do (
 )
 
 echo.
-echo [3/3] å®Œæˆ
-echo   å¯æ‰§è¡Œæ–‡ä»¶ï¼š%DEST%\NavEditor.exe
-echo   ç«™ç‚¹æ•°æ®ï¼š  %DEST%\webï¼ˆä¸ä¼šè¢«è¦†ç›–ï¼‰
+echo [3/3] Íê³É
+echo   ¿ÉÖ´ĞĞÎÄ¼ş: %DEST%\NavEditor.exe
+echo   Õ¾µãÊı¾İ:   %DEST%\web  (²»»á±»¸²¸Ç)
 echo.
 pause
